@@ -1,39 +1,25 @@
-import Link from 'next/link';
-import { BookOpen } from 'lucide-react';
+import Link from "next/link";
+import { BookOpen, Plus } from "lucide-react";
 
 export default function Header() {
   return (
-    <header className="border-b border-accent-gold/20 bg-background-start/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="bg-accent-gold/20 p-2 rounded-lg group-hover:bg-accent-gold/30 transition-all">
-              <BookOpen className="text-accent-gold" size={28} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-accent-gold text-shadow">Katha</h1>
-              <p className="text-xs text-cream/70">Stories that must not be forgotten</p>
-            </div>
-          </Link>
-          
-          <nav className="hidden md:flex items-center gap-6">
-            <Link 
-              href="/" 
-              className="text-cream/80 hover:text-accent-gold transition-colors"
-            >
-              Home
-            </Link>
-            <Link 
-              href="/new-story" 
-              className="text-cream/80 hover:text-accent-gold transition-colors"
-            >
-              Add Story
-            </Link>
-          </nav>
+    <header className="w-full px-6 md:px-12 py-6 flex items-center justify-between">
+      <Link href="/" className="flex items-center gap-2 group">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-katha-gold to-katha-sunset flex items-center justify-center shadow-lg shadow-katha-gold/20 group-hover:scale-105 transition-transform">
+          <BookOpen size={18} className="text-katha-indigo" />
         </div>
-      </div>
+        <span className="font-serif text-2xl font-bold text-katha-cream tracking-wide">
+          Katha
+        </span>
+      </Link>
+
+      <Link
+        href="/new-story"
+        className="flex items-center gap-2 bg-katha-gold hover:bg-katha-goldLight text-katha-indigo font-semibold px-4 py-2.5 rounded-full transition-all hover:scale-105 shadow-lg shadow-katha-gold/20"
+      >
+        <Plus size={18} strokeWidth={2.5} />
+        <span className="hidden sm:inline">Add a Story</span>
+      </Link>
     </header>
   );
 }
-
-// Made with Bob

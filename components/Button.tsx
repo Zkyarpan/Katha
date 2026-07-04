@@ -1,40 +1,37 @@
-import React from 'react';
-import { LucideIcon } from 'lucide-react';
+import { ButtonHTMLAttributes, ReactNode } from "react";
 
-interface ButtonProps {
-  children: React.ReactNode;
-  onClick?: () => void;
-  variant?: 'primary' | 'secondary';
-  icon?: LucideIcon;
-  type?: 'button' | 'submit' | 'reset';
-  className?: string;
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+  variant?: "primary" | "secondary" | "outline";
+  icon?: ReactNode;
 }
 
-export default function Button({ 
-  children, 
-  onClick, 
-  variant = 'primary', 
-  icon: Icon,
-  type = 'button',
-  className = ''
+export default function Button({
+  children,
+  variant = "primary",
+  icon,
+  className = "",
+  ...props
 }: ButtonProps) {
-  const baseStyles = "px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 justify-center";
-  
-  const variantStyles = {
-    primary: "bg-accent-gold text-background-start hover:bg-accent-orange hover:scale-105 glow-gold-hover shadow-lg",
-    secondary: "bg-background-end/50 text-cream border-2 border-accent-gold/30 hover:border-accent-gold hover:bg-background-end/70"
+  const base =
+    "flex items-center justify-center gap-2 font-semibold rounded-full px-6 py-3 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed";
+
+  const variants = {
+    primary:
+      "bg-katha-gold hover:bg-katha-goldLight text-katha-indigo shadow-lg shadow-katha-gold/20",
+    secondary:
+      "bg-katha-plum hover:bg-katha-indigoLight text-katha-cream border border-katha-gold/20",
+    outline:
+      "bg-transparent border-2 border-katha-gold/50 text-katha-gold hover:bg-katha-gold/10",
   };
 
   return (
     <button
-      type={type}
-      onClick={onClick}
-      className={`${baseStyles} ${variantStyles[variant]} ${className}`}
+      className={`${base} ${variants[variant]} ${className}`}
+      {...props}
     >
-      {Icon && <Icon size={20} />}
+      {icon}
       {children}
     </button>
   );
 }
-
-// Made with Bob

@@ -1,47 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-gradient-to-br from-background-start to-background-end text-cream font-sans;
-    min-height: 100vh;
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
-  }
+body {
+  @apply bg-katha-indigo text-katha-cream;
 }
 
-@layer utilities {
-  .glow-gold {
-    box-shadow: 0 0 20px rgba(240, 185, 92, 0.3);
-  }
-  
-  .glow-gold-hover:hover {
-    box-shadow: 0 0 30px rgba(240, 185, 92, 0.5);
-  }
-  
-  .text-shadow {
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  }
-  
-  .animate-fadeIn {
-    animation: fadeIn 0.5s ease-in;
-  }
-  
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #22183D;
+}
+::-webkit-scrollbar-thumb {
+  background: #5C3678;
+  border-radius: 8px;
 }
 
-/* Made with Bob */
+.glow-text {
+  text-shadow: 0 0 24px rgba(240, 185, 92, 0.35);
+}
