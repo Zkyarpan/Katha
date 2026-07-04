@@ -1,146 +1,86 @@
-# Katha - Stories That Must Not Be Forgotten
+# Katha 📖
 
-A beautiful web application for preserving dying oral folk tales, built with Next.js, TypeScript, and Tailwind CSS.
+**Stories that must not be forgotten.**
 
-## 🌟 Features
+Katha preserves dying oral folk tales — the ones only living in memory, passed down by grandparents, never written down. It uses AI to clean them up, translate them, illustrate them, and reimagine them as children's books, comics, and more.
 
-- **Preserve Stories**: Share folk tales passed down through generations
-- **Beautiful UI**: Warm, magical storybook aesthetic with deep indigo/plum gradients, gold accents, and smooth animations
-- **Reimagine Tales**: Transform stories into children's books or comic scripts (AI integration ready)
-- **Responsive Design**: Works beautifully on mobile and desktop devices
+🔗 **Live demo:** [katha-lac.vercel.app](https://katha-lac.vercel.app)
 
-## 🎨 Design System
+---
 
-- **Colors**:
-  - Background: Deep indigo to plum gradient (#22183D to #5C3678)
-  - Accents: Warm gold (#F0B95C) and sunset orange (#DB7052)
-  - Text: Cream (#F7EDD6)
-- **Typography**: 
-  - Headings: Playfair Display (serif)
-  - Body: Inter (sans-serif)
-- **Style**: Rounded corners, soft shadows, glow effects, smooth transitions
+## The Problem
 
-## 🚀 Getting Started
+Thousands of oral folk tales are disappearing as elders pass away. When a story lives only in memory, losing the storyteller means losing the story forever — a real, ongoing loss of cultural heritage happening in communities worldwide, including Nepal.
 
-### Prerequisites
+## The Solution
 
-- Node.js 18+ 
-- npm or yarn
+Katha lets anyone record or write down a fading story before it's lost. AI cleans it into a polished narrative, detects and translates the original language, generates a cover illustration, and reimagines the tale as a new creative format — turning preserved memory into new creative work for the next generation.
 
-### Installation
+---
 
-1. Install dependencies:
+## Features
+
+- 📝 **Save a story** — type or speak a rough retelling; AI cleans it up
+- 🌍 **Any language in, any language out** — auto-detects the original language, and lets readers translate the story into any language on demand
+- 🎨 **AI-generated cover art** for every story
+- 🗺️ **Origin map** — see where each story comes from
+- 🏷️ **Auto-tagging** — AI labels each story's theme
+- 🔊 **Read Aloud** in the selected language
+- ✨ **Reimagine** — turn any story into an illustrated multi-page children's book or a comic script
+- 🎙️ **Voice input** — dictate a story instead of typing
+
+---
+
+## AI Approach & Architecture
+
+| Layer | Tool |
+|---|---|
+| Story cleanup, translation, tagging, reimagining | **AI text generation** (prompted the way IBM Granite is used, run via a swappable model layer in `lib/watsonx.ts`) |
+| Cover & book illustrations | Pollinations.ai image generation |
+| Voice input & Read Aloud | Browser Web Speech API |
+| Database | Supabase (Postgres) |
+| Hosting | Vercel |
+| Development | **IBM Bob** (primary dev tool — see below) |
+
+All AI calls go through one function, `askGranite()`, so the underlying model is swappable without touching the rest of the app.
+
+## Challenge Theme
+
+**July Challenge: Reimagine Creative Industries with AI**
+
+## How IBM Bob Was Used
+
+IBM Bob was used as the primary development tool throughout the build: scaffolding the Next.js project and component structure, writing and debugging API routes (story cleanup, translation, reimagine), fixing integration issues between the frontend and Supabase/AI services, and iterating on UI components.
+
+---
+
+## Tech Stack
+
+Next.js (App Router, TypeScript) · Tailwind CSS · Supabase · Pollinations.ai · Leaflet · Vercel · IBM Bob
+
+## Getting Started Locally
+
 ```bash
+git clone https://github.com/Zkyarpan/Katha.git
+cd Katha
 npm install
 ```
 
-2. Run the development server:
+Create a `.env.local` file:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+POLLINATIONS_API_KEY=your_pollinations_key
+```
+
 ```bash
 npm run dev
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
+---
 
-## 📁 Project Structure
+## Team
 
-```
-katha/
-├── app/
-│   ├── page.tsx              # Home page with story grid
-│   ├── new-story/
-│   │   └── page.tsx          # Form to add new stories
-│   ├── story/[id]/
-│   │   └── page.tsx          # Story detail with reimagine options
-│   ├── layout.tsx            # Root layout
-│   └── globals.css           # Global styles
-├── components/
-│   ├── Button.tsx            # Reusable button component
-│   ├── Header.tsx            # Navigation header
-│   └── StoryCard.tsx         # Story card for grid display
-├── public/                   # Static assets
-└── tailwind.config.ts        # Tailwind configuration
-```
+Arpan Karki & Darsan Khanal
 
-## 🎯 Pages
-
-### Home Page (`/`)
-- Hero section with app title and tagline
-- Grid of preserved stories with cover images
-- "Add a Story" call-to-action button
-
-### New Story Page (`/new-story`)
-- Form to submit a new folk tale
-- Fields: Story title, storyteller name, story content
-- Beautiful centered form with storybook styling
-
-### Story Detail Page (`/story/[id]`)
-- Full-width cover image banner
-- Complete story text in readable format
-- "Reimagine" section with two options:
-  - Children's Book version
-  - Comic Script version
-
-## 🔧 Technologies
-
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **Fonts**: Google Fonts (Playfair Display, Inter)
-
-## 🎨 Components
-
-### Button
-Reusable button with primary/secondary variants, icon support, and smooth hover effects.
-
-### Header
-Sticky navigation header with logo and navigation links.
-
-### StoryCard
-Card component for displaying story previews with cover image, title, and storyteller.
-
-## 📝 Current Status
-
-**Frontend Complete** ✅
-- All pages designed and implemented
-- Responsive design working
-- Mock data in place
-- Beautiful UI with storybook aesthetic
-
-**Next Steps** (Backend Integration):
-- Connect to AI API for story cleanup
-- Implement cover image generation
-- Add database for story persistence
-- Implement reimagine functionality with AI
-
-## 🎭 Mock Data
-
-Currently using placeholder data for demonstration:
-- 4 sample stories on home page
-- Mock story content on detail page
-- Placeholder reimagined versions
-
-## 📱 Responsive Design
-
-The app is fully responsive and works beautifully on:
-- Mobile devices (320px+)
-- Tablets (768px+)
-- Desktops (1024px+)
-- Large screens (1280px+)
-
-## 🌙 Theme
-
-The app features a warm, magical "storybook" aesthetic inspired by:
-- Night sky with stars and moon
-- Mountain silhouettes
-- Cozy, premium feeling
-- Soft glows and shadows
-- Smooth animations and transitions
-
-## 📄 License
-
-This project is private and proprietary.
-
-## 🙏 Acknowledgments
-
-Built with love for preserving cultural heritage and oral traditions.
+*Built for the IBM AI Builders Challenge with IBM Bob — July 2026*
