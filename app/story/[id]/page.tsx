@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Header from "@/components/Header";
 import ReimagineSection from "@/components/ReimagineSection";
+import LanguageSelector from "@/components/LanguageSelector";
 import { supabase } from "@/lib/supabase";
-import { User, Volume2 } from "lucide-react";
+import { User } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // app/story/[id]/page.tsx — async Server Component
@@ -36,7 +37,7 @@ export default async function StoryDetailPage({ params }: PageProps) {
     );
   }
 
-  console.log("[story page] cover_image_url:", story.cover_image_url);
+  console.log("[story page] story:", story);
 
   return (
     <div className="min-h-screen">
@@ -58,10 +59,19 @@ export default async function StoryDetailPage({ params }: PageProps) {
         </div>
 
         <div className="px-6 md:px-12 max-w-3xl mx-auto -mt-16 relative">
-          {story.tag && (
-            <span className="inline-block bg-katha-indigo/80 backdrop-blur-sm text-katha-gold text-xs font-medium px-3 py-1 rounded-full border border-katha-gold/30 mb-4">
-              {story.tag}
-            </span>
+          {(story.tag || (story.language && story.language.toLowerCase() !== "english")) && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {story.tag && (
+                <span className="inline-block bg-katha-indigo/80 backdrop-blur-sm text-katha-gold text-xs font-medium px-3 py-1 rounded-full border border-katha-gold/30">
+                  {story.tag}
+                </span>
+              )}
+              {story.language && story.language.toLowerCase() !== "english" && (
+                <span className="inline-block bg-katha-plum/60 text-katha-muted text-xs font-medium px-3 py-1 rounded-full border border-katha-muted/20">
+                  Translated from {story.language}
+                </span>
+              )}
+            </div>
           )}
           <h1 className="font-serif text-3xl md:text-5xl font-bold text-katha-cream glow-text">
             {story.title}
@@ -71,21 +81,11 @@ export default async function StoryDetailPage({ params }: PageProps) {
             <span>Told by {story.teller_name}</span>
           </div>
 
-          {/* Story text card */}
-          <div className="mt-8 bg-katha-indigoLight/40 border border-katha-plum/40 rounded-2xl p-6 md:p-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-serif text-lg font-semibold text-katha-gold">
-                The Story
-              </h2>
-              <button className="flex items-center gap-1.5 text-katha-muted hover:text-katha-gold text-sm transition-colors">
-                <Volume2 size={16} />
-                Read Aloud
-              </button>
-            </div>
-            <p className="text-katha-cream/90 leading-relaxed text-lg">
-              {story.cleaned_text ?? story.raw_text}
-            </p>
-          </div>
+          {/* Language selector — "The Story" card with Read Aloud + translation */}
+          <LanguageSelector
+            originalText={story.cleaned_text ?? story.raw_text}
+            originalLanguage={story.language}
+          />
 
           {/* Reimagine — client component, receives story data as props */}
           <ReimagineSection

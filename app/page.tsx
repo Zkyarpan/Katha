@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import StoryCard from "@/components/StoryCard";
+import OriginMap from "@/components/OriginMapClient";
 import Link from "next/link";
 import { Sparkles, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -46,6 +47,21 @@ export default async function HomePage() {
             Save Your First Story
           </Link>
         </div>
+      </section>
+
+      {/* Origin Map */}
+      <section className="px-6 md:px-12 pb-12">
+        <h2 className="font-serif text-2xl md:text-3xl font-bold text-katha-cream mb-6">
+          🗺️ Where Our Stories Come From
+        </h2>
+        <OriginMap
+          stories={storyList.map((s) => ({
+            id: s.id,
+            title: s.title,
+            latitude: s.latitude ?? null,
+            longitude: s.longitude ?? null,
+          }))}
+        />
       </section>
 
       {/* Story Library */}

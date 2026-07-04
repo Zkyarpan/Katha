@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // scripts/test-watsonx.mjs
 //
-// Smoke-test for the Pollinations text endpoint.
+// Smoke-test for the Pollinations OpenAI-compatible POST endpoint.
 // Replicates the exact logic in lib/watsonx.ts so this file runs directly
 // with Node — no TypeScript compilation required.
 //
@@ -29,19 +29,23 @@ const prompt = "Say hello in one sentence";
 console.log(`⏳  Sending prompt: "${prompt}"\n`);
 
 // ---------------------------------------------------------------------------
-// Step 2 — GET the Pollinations text endpoint with the prompt in the path.
+// Step 2 — POST to the Pollinations OpenAI-compatible endpoint.
+//           Prompt travels in the request body — no URI length limit.
 // ---------------------------------------------------------------------------
-const response = await fetch(
-  `https://gen.pollinations.ai/text/${encodeURIComponent(prompt)}`,
-  {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  }
-);
+const response = await fetch("https://gen.pollinations.ai/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  },
+  body: JSON.stringify({
+    model: "openai",
+    messages: [{ role: "user", content: prompt }],
+  }),
+});
 
 // ---------------------------------------------------------------------------
-// Step 3 — Handle HTTP-level errors before reading the body.
+// Step 3 — Handle HTTP-level errors before parsing JSON.
 // ---------------------------------------------------------------------------
 if (!response.ok) {
   const errorText = await response.text();
@@ -50,9 +54,10 @@ if (!response.ok) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 4 — The endpoint returns plain text directly.
+// Step 4 — Parse the OpenAI-compatible response and print the reply.
 // ---------------------------------------------------------------------------
-const reply = await response.text();
+const data = await response.json();
+const reply = data.choices[0].message.content;
 
 console.log("✅  askGranite replied:\n");
 console.log("   ", reply);
