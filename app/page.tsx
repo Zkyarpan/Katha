@@ -1,33 +1,17 @@
 import Header from "@/components/Header";
 import StoryCard from "@/components/StoryCard";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Sparkles, BookOpen } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-// Mock data — will be replaced with real Supabase data later.
-// No coverImage here: real stories always arrive from the DB with a keyed URL.
-// StoryCard renders the ImageIcon placeholder when coverImage is absent.
-const mockStories = [
-  {
-    id: "1",
-    title: "The Mountain Spirit of Taplejung",
-    tellerName: "Grandmother",
-    tag: "Mountain Spirit",
-  },
-  {
-    id: "2",
-    title: "The Clever Fox and the Crow",
-    tellerName: "Uncle Bikash",
-    tag: "Trickster Tale",
-  },
-  {
-    id: "3",
-    title: "The River Goddess's Promise",
-    tellerName: "Grandmother",
-    tag: "Origin Story",
-  },
-];
+export default async function HomePage() {
+  const { data: stories } = await supabase
+    .from("stories")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-export default function HomePage() {
+  const storyList = stories ?? [];
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -71,15 +55,32 @@ export default function HomePage() {
             Story Library
           </h2>
           <span className="text-katha-muted text-sm">
-            {mockStories.length} stories preserved
+            {storyList.length} {storyList.length === 1 ? "story" : "stories"} preserved
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockStories.map((story) => (
-            <StoryCard key={story.id} {...story} />
-          ))}
-        </div>
+        {storyList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <BookOpen size={40} className="text-katha-muted/40 mb-4" />
+            <p className="text-katha-cream font-serif text-xl mb-2">No stories yet</p>
+            <p className="text-katha-muted text-sm max-w-xs">
+              Be the first to preserve a fading folk tale for future generations.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {storyList.map((story) => (
+              <StoryCard
+                key={story.id}
+                id={story.id}
+                title={story.title}
+                tellerName={story.teller_name}
+                coverImage={story.cover_image_url}
+                tag={story.tag ?? undefined}
+              />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

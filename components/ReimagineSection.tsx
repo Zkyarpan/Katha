@@ -11,31 +11,46 @@ import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 
 type ReimagineFormat = "children" | "comic" | null;
 
-interface ReimagineSection {
+interface ReimagineProps {
   storyId: string;
   cleanedText: string;
 }
 
-const mockResults: Record<string, string> = {
-  children:
-    "Once upon a time, high on a snowy mountain, lived a kind spirit. 🏔️ Whenever danger came near the village, the spirit would call the clouds together and make a big, swirling storm to keep everyone safe! ⛈️ The villagers loved their invisible friend very much.",
-  comic:
-    "PANEL 1: Wide shot of a snow-capped mountain at dusk. A glowing figure watches over a village below.\nCAPTION: \"For generations, the Mountain Spirit has protected this village...\"\n\nPANEL 2: A shadowy figure approaches the village gate.\nSPIRIT (thought bubble): \"An intruder...\"",
-};
-
-export default function ReimagineSection({ storyId, cleanedText }: ReimagineSection) {
+export default function ReimagineSection({ storyId }: ReimagineProps) {
   const [activeFormat, setActiveFormat] = useState<ReimagineFormat>(null);
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // storyId and cleanedText are available for when /api/reimagine is wired up.
-  void storyId;
-  void cleanedText;
+  const handleReimagine = async (format: NonNullable<ReimagineFormat>) => {
+    // If the same button is clicked again, just re-show the cached result.
+    if (format === activeFormat && result !== null) return;
 
-  const handleReimagine = (format: ReimagineFormat) => {
-    setLoading(true);
     setActiveFormat(format);
-    // TODO: connect to /api/reimagine once backend is ready
-    setTimeout(() => setLoading(false), 1200);
+    setLoading(true);
+    setResult(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/reimagine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId, format }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      setResult(data.result);
+    } catch {
+      setError("Network error — please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -64,7 +79,7 @@ export default function ReimagineSection({ storyId, cleanedText }: ReimagineSect
         </Button>
       </div>
 
-      {/* Result */}
+      {/* Result panel — shown once a format has been selected */}
       {activeFormat && (
         <div className="mt-6 bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8 animate-in fade-in duration-500">
           {loading ? (
@@ -72,9 +87,11 @@ export default function ReimagineSection({ storyId, cleanedText }: ReimagineSect
               <Sparkles size={16} className="animate-pulse text-katha-gold" />
               Reimagining your story...
             </p>
+          ) : error ? (
+            <p className="text-red-400 text-sm">{error}</p>
           ) : (
             <p className="text-katha-cream/90 leading-relaxed whitespace-pre-line">
-              {mockResults[activeFormat]}
+              {result}
             </p>
           )}
         </div>
