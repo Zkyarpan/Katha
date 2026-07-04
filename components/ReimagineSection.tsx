@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Button from "@/components/Button";
+import PictureBook from "@/components/PictureBook";
 import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,16 @@ import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
 
 type ReimagineFormat = "children" | "comic" | null;
 
+interface BookPage {
+  text: string;
+  imageUrl: string;
+}
+
+type ReimagineResult =
+  | { kind: "comic";    text: string }
+  | { kind: "children"; pages: BookPage[] }
+  | null;
+
 interface ReimagineProps {
   storyId: string;
   cleanedText: string;
@@ -19,7 +30,7 @@ interface ReimagineProps {
 export default function ReimagineSection({ storyId }: ReimagineProps) {
   const [activeFormat, setActiveFormat] = useState<ReimagineFormat>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<ReimagineResult>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleReimagine = async (format: NonNullable<ReimagineFormat>) => {
@@ -45,7 +56,11 @@ export default function ReimagineSection({ storyId }: ReimagineProps) {
         return;
       }
 
-      setResult(data.result);
+      if (format === "children" && Array.isArray(data.pages)) {
+        setResult({ kind: "children", pages: data.pages });
+      } else {
+        setResult({ kind: "comic", text: data.result });
+      }
     } catch {
       setError("Network error — please check your connection and try again.");
     } finally {
@@ -81,19 +96,29 @@ export default function ReimagineSection({ storyId }: ReimagineProps) {
 
       {/* Result panel — shown once a format has been selected */}
       {activeFormat && (
-        <div className="mt-6 bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8 animate-in fade-in duration-500">
+        <div className="mt-6 animate-in fade-in duration-500">
           {loading ? (
-            <p className="text-katha-muted flex items-center gap-2">
-              <Sparkles size={16} className="animate-pulse text-katha-gold" />
-              Reimagining your story...
-            </p>
+            <div className="bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8">
+              <p className="text-katha-muted flex items-center gap-2">
+                <Sparkles size={16} className="animate-pulse text-katha-gold" />
+                {activeFormat === "children"
+                  ? "Illustrating your picture book… (this takes a bit longer)"
+                  : "Reimagining your story…"}
+              </p>
+            </div>
           ) : error ? (
-            <p className="text-red-400 text-sm">{error}</p>
-          ) : (
-            <p className="text-katha-cream/90 leading-relaxed whitespace-pre-line">
-              {result}
-            </p>
-          )}
+            <div className="bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          ) : result?.kind === "children" ? (
+            <PictureBook pages={result.pages} />
+          ) : result?.kind === "comic" ? (
+            <div className="bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8">
+              <p className="text-katha-cream/90 leading-relaxed whitespace-pre-line">
+                {result.text}
+              </p>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

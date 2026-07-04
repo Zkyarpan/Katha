@@ -9,6 +9,19 @@ import { Sparkles, Volume2, VolumeX } from "lucide-react";
 // and translated text card — all in one client component.
 // ---------------------------------------------------------------------------
 
+const langCodes: Record<string, string> = {
+  english:    "en-US",
+  spanish:    "es-ES",
+  french:     "fr-FR",
+  hindi:      "hi-IN",
+  nepali:     "ne-NP",
+  arabic:     "ar-SA",
+  chinese:    "zh-CN",
+  portuguese: "pt-PT",
+  german:     "de-DE",
+  japanese:   "ja-JP",
+};
+
 const LANGUAGES = [
   "English",
   "Spanish",
@@ -38,11 +51,11 @@ export default function LanguageSelector({
 
   // --- Read Aloud state ---
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Cache maps language name → translated text so each language is only
   // fetched once per page load.
   const cacheRef = useRef<Record<string, string>>({ English: originalText });
-  const recognitionRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   // Keep the English cache entry in sync if originalText ever changes.
   useEffect(() => {
@@ -51,15 +64,11 @@ export default function LanguageSelector({
   }, [originalText, selectedLanguage]);
 
   // Cancel speech on unmount.
-  useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined") window.speechSynthesis.cancel();
-    };
-  }, []);
+  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
 
   // Stop speaking whenever the displayed text changes (language switch).
   useEffect(() => {
-    if (typeof window !== "undefined") window.speechSynthesis.cancel();
+    window.speechSynthesis?.cancel();
     setIsSpeaking(false);
   }, [displayText]);
 
@@ -73,12 +82,36 @@ export default function LanguageSelector({
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(displayText);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    recognitionRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
+    try {
+      const utterance = new SpeechSynthesisUtterance(displayText);
+
+      // BCP47 language code so the browser picks an appropriate voice.
+      utterance.lang  = langCodes[selectedLanguage.toLowerCase()] ?? "en-US";
+      utterance.rate  = 0.95; // slightly slower reads more naturally
+      utterance.pitch = 1.0;
+
+      // Prefer a higher-quality voice when the browser has one available.
+      // getVoices() may return [] before voices load; that's fine — the
+      // browser falls back to its default voice automatically.
+      const voices = window.speechSynthesis.getVoices();
+      const goodVoice = voices.find(
+        (v) =>
+          v.name.includes("Samantha") ||
+          v.name.includes("Google")   ||
+          v.name.includes("Natural")
+      );
+      if (goodVoice) utterance.voice = goodVoice;
+
+      utterance.onend   = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      utteranceRef.current = utterance;
+
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
+    } catch {
+      // speak() can throw in rare browser/OS edge cases.
+      setIsSpeaking(false);
+    }
   };
 
   // --- Translation handler ---
@@ -140,7 +173,8 @@ export default function LanguageSelector({
         </h2>
         <button
           onClick={handleReadAloud}
-          className="flex items-center gap-1.5 text-katha-muted hover:text-katha-gold text-sm transition-colors"
+          disabled={loading}
+          className="flex items-center gap-1.5 text-katha-muted hover:text-katha-gold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isSpeaking ? (
             <>
