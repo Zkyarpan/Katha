@@ -51,6 +51,24 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)"],
       },
+      animation: {
+        gradient: "gradient 8s linear infinite",
+        marquee: "marquee var(--duration) linear infinite",
+        "marquee-vertical": "marquee-vertical var(--duration) linear infinite",
+      },
+      keyframes: {
+        gradient: {
+          to: { backgroundPosition: "var(--bg-size, 300%) 0" },
+        },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(calc(-100% - var(--gap)))" },
+        },
+        "marquee-vertical": {
+          from: { transform: "translateY(0)" },
+          to: { transform: "translateY(calc(-100% - var(--gap)))" },
+        },
+      },
     },
   },
   plugins: [],

@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Button from "@/components/Button";
+import ReactMarkdown from "react-markdown";
 import PictureBook from "@/components/PictureBook";
 import { BookOpen, MessageSquareText, Sparkles } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
-// ---------------------------------------------------------------------------
-// ReimagineSection
-// Isolated client component so the parent Story page can be a Server Component.
-// ---------------------------------------------------------------------------
 
 type ReimagineFormat = "children" | "comic" | null;
 
@@ -36,26 +34,21 @@ export default function ReimagineSection({ storyId }: ReimagineProps) {
   const handleReimagine = async (format: NonNullable<ReimagineFormat>) => {
     // If the same button is clicked again, just re-show the cached result.
     if (format === activeFormat && result !== null) return;
-
     setActiveFormat(format);
     setLoading(true);
     setResult(null);
     setError(null);
-
     try {
       const res = await fetch("/api/reimagine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storyId, format }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
-
       if (format === "children" && Array.isArray(data.pages)) {
         setResult({ kind: "children", pages: data.pages });
       } else {
@@ -69,54 +62,71 @@ export default function ReimagineSection({ storyId }: ReimagineProps) {
   };
 
   return (
-    <div className="mt-10">
+    <div>
+      {/* Section heading */}
       <div className="flex items-center gap-2 mb-4">
-        <Sparkles size={18} className="text-katha-gold" />
-        <h2 className="font-serif text-xl font-semibold text-katha-cream">
+        <Sparkles size={16} className="text-purple-500" />
+        <h2 className="text-lg font-bold tracking-tight text-neutral-900">
           Reimagine this story
         </h2>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* Format buttons */}
+      <div className="flex flex-wrap gap-2">
         <Button
-          variant={activeFormat === "children" ? "primary" : "secondary"}
+          variant={activeFormat === "children" ? "default" : "outline"}
+          size="sm"
           onClick={() => handleReimagine("children")}
-          icon={<BookOpen size={16} />}
+          className={activeFormat === "children" ? "bg-neutral-900 text-white" : ""}
         >
+          <BookOpen size={14} />
           Children&apos;s Book
         </Button>
         <Button
-          variant={activeFormat === "comic" ? "primary" : "secondary"}
+          variant={activeFormat === "comic" ? "default" : "outline"}
+          size="sm"
           onClick={() => handleReimagine("comic")}
-          icon={<MessageSquareText size={16} />}
+          className={activeFormat === "comic" ? "bg-neutral-900 text-white" : ""}
         >
+          <MessageSquareText size={14} />
           Comic Script
         </Button>
       </div>
 
-      {/* Result panel — shown once a format has been selected */}
+      {/* Result panel */}
       {activeFormat && (
-        <div className="mt-6 animate-in fade-in duration-500">
+        <div className="mt-5 animate-in fade-in duration-500">
           {loading ? (
-            <div className="bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8">
-              <p className="text-katha-muted flex items-center gap-2">
-                <Sparkles size={16} className="animate-pulse text-katha-gold" />
-                {activeFormat === "children"
-                  ? "Illustrating your picture book… (this takes a bit longer)"
-                  : "Reimagining your story…"}
-              </p>
+            <div className="border border-neutral-200 rounded-lg p-5">
+              {activeFormat === "children" ? (
+                <div className="space-y-4">
+                  <Skeleton className="w-full aspect-[4/3] rounded-lg" />
+                  <Skeleton className="h-4 w-3/4 mx-auto" />
+                  <Skeleton className="h-4 w-1/2 mx-auto" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-5/6" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-5 w-2/5 mt-4" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              )}
             </div>
           ) : error ? (
-            <div className="bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8">
-              <p className="text-red-400 text-sm">{error}</p>
+            <div className="border border-red-100 bg-red-50 rounded-lg p-4">
+              <p className="text-red-500 text-sm">{error}</p>
             </div>
           ) : result?.kind === "children" ? (
             <PictureBook pages={result.pages} />
           ) : result?.kind === "comic" ? (
-            <div className="bg-katha-indigoLight/40 border border-katha-gold/30 rounded-2xl p-6 md:p-8">
-              <p className="text-katha-cream/90 leading-relaxed whitespace-pre-line">
-                {result.text}
-              </p>
+            <div className="border border-neutral-200 rounded-lg p-5">
+              <div className="prose prose-neutral prose-sm max-w-none">
+                <ReactMarkdown>{result.text}</ReactMarkdown>
+              </div>
             </div>
           ) : null}
         </div>

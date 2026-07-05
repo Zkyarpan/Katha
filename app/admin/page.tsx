@@ -1,70 +1,78 @@
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/is-admin";
 import { createClient } from "@/lib/supabase-server";
-import Header from "@/components/Header";
+import { Card, CardContent } from "@/components/ui/card";
 import AdminStoriesTable from "@/components/AdminStoriesTable";
 import AdminEchoesTable from "@/components/AdminEchoesTable";
-import { BookOpen, MessageCircle, Users } from "lucide-react";
 
 export default async function AdminPage() {
   const admin = await requireAdmin();
+
   if (!admin) redirect("/");
+  console.log("Admin page reached, user:", admin);
 
   const supabase = await createClient();
 
   const { data: stories } = await supabase
     .from("stories")
-    .select("*")
+    .select("id, title, teller_name, created_at")
     .order("created_at", { ascending: false });
 
-  const { data: echoes } = await supabase
+  const { data: echoesRaw } = await supabase
     .from("echoes")
-    .select("*, stories(title)")
+    .select("id, content, display_name, is_anonymous, stories(title)")
     .order("created_at", { ascending: false });
 
-  const { count: userCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true });
+  const echoes = (echoesRaw ?? []).map((e) => ({
+    ...e,
+    stories: Array.isArray(e.stories) ? (e.stories[0] ?? null) : e.stories,
+  }));
+
+  const storyCount = (stories ?? []).length;
+  const echoCount = echoes.length;
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      <div className="max-w-5xl mx-auto px-6 py-12">
 
-      <div className="max-w-5xl mx-auto px-6 pt-10 pb-20">
-        <h1 className="text-2xl font-bold text-neutral-900 mb-1">
-          Admin Dashboard
-        </h1>
-        <p className="text-sm text-neutral-500 mb-8">
-          Manage stories, echoes, and users
-        </p>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-10">
-          <div className="border rounded-xl p-4">
-            <div className="flex items-center gap-2 text-neutral-400 text-xs mb-1">
-              <BookOpen size={14} />
-              Stories
-            </div>
-            <p className="text-2xl font-bold">{stories?.length ?? 0}</p>
-          </div>
-          <div className="border rounded-xl p-4">
-            <div className="flex items-center gap-2 text-neutral-400 text-xs mb-1">
-              <MessageCircle size={14} />
-              Echoes
-            </div>
-            <p className="text-2xl font-bold">{echoes?.length ?? 0}</p>
-          </div>
-          <div className="border rounded-xl p-4">
-            <div className="flex items-center gap-2 text-neutral-400 text-xs mb-1">
-              <Users size={14} />
-              Users
-            </div>
-            <p className="text-2xl font-bold">{userCount ?? 0}</p>
-          </div>
+        {/* Page header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+            Admin Dashboard
+          </h1>
+          <p className="text-neutral-500 text-sm mt-1">Manage stories and echoes</p>
         </div>
 
-        <AdminStoriesTable stories={stories ?? []} />
-        <AdminEchoesTable echoes={echoes ?? []} />
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-10">
+          <Card className="bg-white border border-neutral-200 shadow-sm">
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-neutral-500 uppercase tracking-wide font-medium">Stories</p>
+              <p className="text-3xl font-bold tracking-tight text-neutral-900 mt-1">{storyCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white border border-neutral-200 shadow-sm">
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-neutral-500 uppercase tracking-wide font-medium">Echoes</p>
+              <p className="text-3xl font-bold tracking-tight text-neutral-900 mt-1">{echoCount}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tables */}
+        <div className="grid grid-cols-1 gap-8">
+          <Card className="bg-white border border-neutral-200 shadow-sm">
+            <CardContent className="pt-5 pb-5">
+              <AdminStoriesTable stories={stories ?? []} />
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border border-neutral-200 shadow-sm">
+            <CardContent className="pt-5 pb-5">
+              <AdminEchoesTable echoes={echoes ?? []} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

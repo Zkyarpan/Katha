@@ -46,3 +46,108 @@
   background: #d1d5db;
   border-radius: 8px;
 }
+
+/* ── Story Reader — Medium-style typography ──
+   Add these styles to your globals.css or a dedicated stylesheet.
+   They target the story reader wrapper on the detail page.
+*/
+
+.story-reader-wrapper {
+  /* Base reading typography */
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+  line-height: 1.9;
+  color: #1a1a1a;
+  letter-spacing: -0.003em;
+  word-spacing: 0.01em;
+}
+
+/* Paragraphs */
+.story-reader-wrapper p {
+  margin-bottom: 1.6em;
+}
+
+/* The "The Story" heading inside StoryReader */
+.story-reader-wrapper h2,
+.story-reader-wrapper h3 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #0a0a0a;
+  margin-bottom: 0.5em;
+}
+
+/* "Read in" dropdown and "Read Aloud" controls */
+.story-reader-wrapper select {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #525252;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.story-reader-wrapper select:hover {
+  border-color: #d4d4d4;
+  background: #f5f5f5;
+}
+
+.story-reader-wrapper select:focus {
+  outline: none;
+  border-color: #a3a3a3;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Read Aloud button styling */
+.story-reader-wrapper button {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+/* "Read more" expand button */
+.story-reader-wrapper [class*="read-more"],
+.story-reader-wrapper button[class*="more"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #0a0a0a;
+}
+
+/* Blockquotes if any */
+.story-reader-wrapper blockquote {
+  border-left: 3px solid #e5e5e5;
+  padding-left: 1.25em;
+  margin: 1.8em 0;
+  font-style: italic;
+  color: #404040;
+}
+
+/* Links inside story */
+.story-reader-wrapper a {
+  color: #0a0a0a;
+  text-decoration: underline;
+  text-decoration-color: #d4d4d4;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s;
+}
+
+.story-reader-wrapper a:hover {
+  text-decoration-color: #0a0a0a;
+}
+
+/* First paragraph — slightly larger opening */
+.story-reader-wrapper p:first-of-type {
+  font-size: 1.3rem;
+  line-height: 1.85;
+}
+
+/* Selection highlight */
+.story-reader-wrapper ::selection {
+  background: rgba(0, 0, 0, 0.08);
+}

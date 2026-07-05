@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { ImageIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 interface StoryCardProps {
   id: string;
@@ -27,9 +28,7 @@ export default function StoryCard({
       <div className="rounded-xl overflow-hidden border bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
         <div className="relative w-full aspect-[16/10] overflow-hidden bg-neutral-100">
           {!loaded && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <ImageIcon className="text-neutral-300 animate-pulse" size={28} />
-            </div>
+            <Skeleton className="absolute inset-0 rounded-none" />
           )}
           <Image
             src={coverImage}

@@ -67,7 +67,7 @@ export default function StoryLibrarySection({
                 id={story.id}
                 title={story.title}
                 tellerName={story.tellerName}
-                coverImage={story.coverImage}
+                coverImage={story.coverImage ?? ""}
                 tag={story.tag}
               />
             </BlurFade>

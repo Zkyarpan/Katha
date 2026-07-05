@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ---------------------------------------------------------------------------
 // PictureBook
@@ -58,9 +59,7 @@ export default function PictureBook({ pages }: PictureBookProps) {
         {/* Illustration */}
         <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-katha-plum/30 mb-6">
           {!imgLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <ImageIcon size={32} className="text-katha-muted/40 animate-pulse" />
-            </div>
+            <Skeleton className="absolute inset-0 rounded-none" />
           )}
           <Image
             key={page.imageUrl} // remount on URL change so onLoad fires reliably

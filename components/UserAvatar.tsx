@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 const COLORS = [
   "bg-red-400", "bg-orange-400", "bg-amber-400", "bg-green-400",
   "bg-teal-400", "bg-blue-400", "bg-indigo-400", "bg-purple-400", "bg-pink-400",
@@ -19,12 +21,16 @@ interface UserAvatarProps {
 }
 
 export default function UserAvatar({ name, avatarUrl, size = 32 }: UserAvatarProps) {
-  if (avatarUrl) {
+  const [imgError, setImgError] = useState(false);
+
+  if (avatarUrl && !imgError) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={avatarUrl}
         alt={name}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
         className="rounded-full object-cover"
         style={{ width: size, height: size }}
       />

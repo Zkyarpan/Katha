@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import Header from "@/components/Header";
 import StoryCard from "@/components/StoryCard";
 import { supabase } from "@/lib/supabase";
 import { BlurFade } from "@/components/ui/blur-fade";
@@ -15,7 +14,6 @@ export default async function AllStoriesPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
 
       <div className="max-w-5xl mx-auto px-6 pt-10 pb-20">
         <BlurFade delay={0.1}>
