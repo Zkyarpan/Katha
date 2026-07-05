@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase-browser";
 import Header from "@/components/Header";
 import Button from "@/components/Button";
 import { Sparkles, User, BookText, PenLine, Mic, MicOff } from "lucide-react";
@@ -31,6 +32,7 @@ declare global {
 }
 
 export default function NewStoryPage() {
+  const supabase = createClient();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -108,10 +110,12 @@ export default function NewStoryPage() {
     setError(null);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const res = await fetch("/api/clean-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, tellerName: teller, rawText: story, locationName: location }),
+        body: JSON.stringify({ title, tellerName: teller, rawText: story, locationName: location, userId: user?.id ?? null }),
       });
 
       const data = await res.json();

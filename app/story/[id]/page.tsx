@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Header from "@/components/Header";
 import ReimagineSection from "@/components/ReimagineSection";
+import EchoesSection from "@/components/EchoesSection";
 import LanguageSelector from "@/components/LanguageSelector";
 import { supabase } from "@/lib/supabase";
 import { User } from "lucide-react";
@@ -92,6 +93,9 @@ export default async function StoryDetailPage({ params }: PageProps) {
             storyId={story.id}
             cleanedText={story.cleaned_text ?? story.raw_text}
           />
+
+          {/* Echoes — community memories and reflections on this story */}
+          <EchoesSection storyId={story.id} />
         </div>
       </article>
     </div>

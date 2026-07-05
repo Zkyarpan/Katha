@@ -20,6 +20,7 @@ interface CleanStoryRequest {
   rawText: string;
   locationName?: string;
   language?: string; // optional hint from the client; AI detects if omitted
+  userId?: string | null;
 }
 
 interface NominatimResult {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { title, tellerName, rawText, locationName } = body;
+  const { title, tellerName, rawText, locationName, userId } = body;
   // `language` from the body is accepted but not used directly —
   // we always ask the AI to detect the source language so the stored
   // value reflects what the text actually was, not what the user guessed.
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         location_name: locationName ?? null,
         latitude,
         longitude,
+        user_id: userId ?? null,
       })
       .select()          // return the inserted row (including generated id)
       .single();         // we inserted exactly one row

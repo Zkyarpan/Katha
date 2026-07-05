@@ -1,9 +1,10 @@
+import Link from "next/link";
+import { Plus, MapPin, Sparkles } from "lucide-react";
 import Header from "@/components/Header";
 import StoryCard from "@/components/StoryCard";
-import OriginMap from "@/components/OriginMapClient";
-import Link from "next/link";
-import { Sparkles, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { BlurFade } from "@/components/ui/blur-fade";
+import OriginMapClient from "@/components/OriginMapClient";
 
 export default async function HomePage() {
   const { data: stories } = await supabase
@@ -13,91 +14,128 @@ export default async function HomePage() {
 
   const storyList = stories ?? [];
 
+  const pinned = storyList
+    .filter((s) => s.latitude && s.longitude)
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      latitude: s.latitude,
+      longitude: s.longitude,
+    }));
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       <Header />
 
-      {/* Hero Section */}
-      <section className="px-6 md:px-12 pt-10 pb-16 text-center relative overflow-hidden">
-        {/* soft glow behind hero */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-katha-gold/10 rounded-full blur-[120px] pointer-events-none" />
-
-        <div className="relative">
-          <span className="inline-flex items-center gap-1.5 text-katha-gold text-sm font-medium bg-katha-gold/10 border border-katha-gold/20 px-4 py-1.5 rounded-full mb-6">
-            <Sparkles size={14} />
+      {/* Hero */}
+      <section className="px-6 pt-24 pb-16 text-center max-w-2xl mx-auto">
+        <BlurFade delay={0.1}>
+          <div className="inline-flex items-center gap-1.5 text-purple-600 text-xs font-medium bg-purple-50 border border-purple-100 px-3 py-1.5 rounded-full mb-8">
+            <Sparkles size={12} />
             Powered by IBM watsonx AI
-          </span>
+          </div>
+        </BlurFade>
 
-          <h1 className="font-serif text-4xl md:text-6xl font-bold text-katha-cream glow-text leading-tight">
-            Stories that must
-            <br />
-            <span className="text-katha-gold">not be forgotten</span>
+        <BlurFade delay={0.2}>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.15] text-neutral-900">
+            Stories that must{" "}
+            <span className="bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+              not be forgotten
+            </span>
           </h1>
+        </BlurFade>
 
-          <p className="text-katha-muted text-lg mt-6 max-w-xl mx-auto">
-            Preserve fading oral folk tales, and let AI transform them into
-            children&apos;s books, comics, and new creative worlds.
+        <BlurFade delay={0.3}>
+          <p className="mt-4 text-neutral-500 text-base max-w-lg mx-auto leading-relaxed">
+            Preserve fading oral folk tales with AI. Transform them into
+            children&apos;s books, comics, and creative works.
           </p>
+        </BlurFade>
 
+        <BlurFade delay={0.4}>
           <Link
             href="/new-story"
-            className="inline-flex items-center gap-2 mt-8 bg-katha-gold hover:bg-katha-goldLight text-katha-indigo font-semibold px-7 py-3.5 rounded-full transition-all hover:scale-105 shadow-lg shadow-katha-gold/20"
+            className="inline-flex items-center gap-2 mt-8 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
           >
-            <Sparkles size={18} />
+            <Plus size={15} />
             Save Your First Story
           </Link>
-        </div>
+        </BlurFade>
       </section>
 
-      {/* Origin Map */}
-      <section className="px-6 md:px-12 pb-12">
-        <h2 className="font-serif text-2xl md:text-3xl font-bold text-katha-cream mb-6">
-          🗺️ Where Our Stories Come From
-        </h2>
-        <OriginMap
-          stories={storyList.map((s) => ({
-            id: s.id,
-            title: s.title,
-            latitude: s.latitude ?? null,
-            longitude: s.longitude ?? null,
-          }))}
-        />
-      </section>
+      <div className="max-w-5xl mx-auto px-6">
+        {/* Stories */}
+        {storyList.length > 0 && (
+          <section className="pb-16">
+            <BlurFade delay={0.2}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-neutral-900">
+                  Recent Stories
+                </h2>
+               <Link
+  href="/stories"
+  className="inline-flex items-center gap-1.5 text-sm font-medium bg-neutral-900 hover:bg-neutral-800 text-white px-4 py-2 rounded-lg transition-colors"
+>
+  View all {storyList.length} stories 
+</Link>
+              </div>
+            </BlurFade>
 
-      {/* Story Library */}
-      <section className="px-6 md:px-12 pb-20">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="font-serif text-2xl md:text-3xl font-bold text-katha-cream">
-            Story Library
-          </h2>
-          <span className="text-katha-muted text-sm">
-            {storyList.length} {storyList.length === 1 ? "story" : "stories"} preserved
-          </span>
-        </div>
-
-        {storyList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <BookOpen size={40} className="text-katha-muted/40 mb-4" />
-            <p className="text-katha-cream font-serif text-xl mb-2">No stories yet</p>
-            <p className="text-katha-muted text-sm max-w-xs">
-              Be the first to preserve a fading folk tale for future generations.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {storyList.map((story) => (
-              <StoryCard
-                key={story.id}
-                id={story.id}
-                title={story.title}
-                tellerName={story.teller_name}
-                coverImage={story.cover_image_url}
-                tag={story.tag ?? undefined}
-              />
-            ))}
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {storyList.slice(0, 3).map((story, index) => (
+                <BlurFade key={story.id} delay={0.05 * index}>
+                  <StoryCard
+                    id={story.id}
+                    title={story.title}
+                    tellerName={story.teller_name}
+                    coverImage={story.cover_image_url}
+                    tag={story.tag ?? undefined}
+                  />
+                </BlurFade>
+              ))}
+            </div>
+          </section>
         )}
-      </section>
+
+        {storyList.length === 0 && (
+          <section className="pb-16">
+            <div className="text-center py-16 border border-dashed border-neutral-200 rounded-xl">
+              <p className="text-neutral-400 text-sm mb-4">
+                No stories yet — be the first to preserve one
+              </p>
+              <Link
+                href="/new-story"
+                className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+              >
+                <Plus size={15} />
+                Add a Story
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {/* Map */}
+        {pinned.length > 0 && (
+          <section className="pb-16">
+            <BlurFade delay={0.3}>
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin size={16} className="text-purple-500" />
+                <h2 className="text-lg font-semibold text-neutral-900">
+                  Story Origins
+                </h2>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-neutral-200 shadow-sm">
+                <OriginMapClient stories={pinned} />
+              </div>
+            </BlurFade>
+          </section>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-neutral-100 py-8 text-center text-xs text-neutral-400">
+        Built for IBM AI Builders Challenge 2026 · Powered by IBM Bob
+      </footer>
     </div>
   );
 }
