@@ -31,8 +31,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-neutral-100 text-center text-xs text-neutral-400">
-          Built for IBM AI Builders Challenge 2026 · Powered by IBM watsonx
+        <div className="mt-8 pt-6 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-400">
+          <span>© {new Date().getFullYear()} Katha. Made by Zkyarpan</span>
+          <span>Built for IBM AI Builders Challenge 2026 · Powered by IBM watsonx</span>
         </div>
       </div>
     </footer>

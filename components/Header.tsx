@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Plus, LogOut, ChevronDown } from "lucide-react";
+import { BookOpen, Plus, LogOut, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import AuthModal from "@/components/AuthModal";
@@ -60,6 +60,8 @@ export default function Header() {
     window.location.reload();
   };
 
+  const isAdmin = profile?.role === "admin";
+
   return (
     <>
       <header
@@ -69,7 +71,7 @@ export default function Header() {
             : "bg-transparent"
         }`}
       >
-        <div className="max-w-6xl mx-auto flex h-14 items-center justify-between px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-neutral-900 flex items-center justify-center">
@@ -81,8 +83,15 @@ export default function Header() {
           </Link>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
-            {/* Nav links — visible when logged in */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Nav links */}
+            <Link
+              href="/stories"
+              className="hidden sm:inline-flex text-sm font-medium text-neutral-500 hover:text-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition-all"
+            >
+              Browse
+            </Link>
+
             {user && (
               <Link
                 href="/my-stories"
@@ -92,15 +101,20 @@ export default function Header() {
               </Link>
             )}
 
-            {/* Browse link — always visible */}
-            <Link
-              href="/stories"
-              className="hidden sm:inline-flex text-sm font-medium text-neutral-500 hover:text-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition-all"
-            >
-              Browse
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition-all"
+              >
+                <Shield size={13} />
+                Admin
+              </Link>
+            )}
 
-            {/* Add a Story — primary CTA */}
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-5 bg-neutral-200 mx-1" />
+
+            {/* Add a Story */}
             <Link
               href="/new-story"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-neutral-900 hover:bg-neutral-800 h-9 px-4 rounded-lg transition-all active:scale-[0.98]"
@@ -125,7 +139,6 @@ export default function Header() {
                 </button>
                 {showMenu && (
                   <>
-                    {/* Backdrop to close menu */}
                     <div
                       className="fixed inset-0 z-40"
                       onClick={() => setShowMenu(false)}
@@ -148,20 +161,28 @@ export default function Header() {
                         >
                           My Stories
                         </Link>
-                        {profile?.role === "admin" && (
+                        <Link
+                          href="/stories"
+                          className="sm:hidden w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"
+                        >
+                          Browse
+                        </Link>
+                        {isAdmin && (
                           <Link
                             href="/admin"
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"
                           >
+                            <Shield size={13} />
                             Admin Dashboard
                           </Link>
                         )}
+                        <div className="border-t border-neutral-100 my-1" />
                         <button
                           onClick={handleSignOut}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           <LogOut size={14} />
-                          Sign out
+                          Sign Out
                         </button>
                       </div>
                     </div>
@@ -173,7 +194,7 @@ export default function Header() {
                 onClick={() => setShowAuth(true)}
                 className="inline-flex items-center text-sm font-medium text-neutral-700 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 h-9 px-4 rounded-lg shadow-xs transition-all active:scale-[0.98] cursor-pointer"
               >
-                Sign in
+                Sign In
               </button>
             )}
           </div>
