@@ -23,6 +23,8 @@ import {
   LocateFixed,
   Loader2,
   Languages,
+  ChevronDown,
+  AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -40,7 +42,7 @@ interface SpeechRecognitionInstance extends EventTarget {
   stop(): void;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: Event) => void) | null;
 }
 
 declare global {
@@ -49,6 +51,37 @@ declare global {
     webkitSpeechRecognition: new () => SpeechRecognitionInstance;
   }
 }
+
+// ── Language list ──────────────────────────────────────────────────────────
+// Each entry is [BCP-47 tag, display label, native script label]
+// The tag is passed directly to SpeechRecognition.lang — must be exact.
+const LANGUAGES: [string, string, string][] = [
+  ["en-US", "English", "English"],
+  ["ne-NP", "Nepali", "नेपाली"],
+  ["hi-IN", "Hindi", "हिन्दी"],
+  ["bn-BD", "Bengali", "বাংলা"],
+  ["ta-IN", "Tamil", "தமிழ்"],
+  ["te-IN", "Telugu", "తెలుగు"],
+  ["ur-PK", "Urdu", "اردو"],
+  ["es-ES", "Spanish", "Español"],
+  ["fr-FR", "French", "Français"],
+  ["pt-BR", "Portuguese", "Português"],
+  ["ar-SA", "Arabic", "العربية"],
+  ["zh-CN", "Chinese", "中文"],
+  ["ja-JP", "Japanese", "日本語"],
+  ["ko-KR", "Korean", "한국어"],
+  ["de-DE", "German", "Deutsch"],
+  ["ru-RU", "Russian", "Русский"],
+  ["sw-KE", "Swahili", "Kiswahili"],
+  ["yo-NG", "Yoruba", "Yorùbá"],
+  ["ig-NG", "Igbo", "Igbo"],
+  ["ha-NG", "Hausa", "Hausa"],
+  ["id-ID", "Indonesian", "Bahasa Indonesia"],
+  ["ms-MY", "Malay", "Bahasa Melayu"],
+  ["vi-VN", "Vietnamese", "Tiếng Việt"],
+  ["th-TH", "Thai", "ภาษาไทย"],
+  ["tr-TR", "Turkish", "Türkçe"],
+];
 
 const inputCls =
   "w-full border border-neutral-200 bg-white rounded-xl px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-400 transition-all";
@@ -70,8 +103,8 @@ export default function NewStoryPage() {
   // Speech recognition
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-  const [detectedLang, setDetectedLang] = useState<string | null>(null);
-  const [speechLang, setSpeechLang] = useState(""); // "" = auto-detect
+  const [speechLang, setSpeechLang] = useState("ne-NP"); // default Nepali — user should pick their own
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const committedRef = useRef("");
 
@@ -122,13 +155,19 @@ export default function NewStoryPage() {
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!SR) return;
+
+    setSpeechError(null);
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
-    // "" = let the browser/OS detect the language automatically
+    // Must be a concrete BCP-47 tag — the browser does NOT auto-detect speech
+    // language; passing "" silently falls back to the OS UI language (usually
+    // English) which is why Nepali was being mis-transcribed.
     recognition.lang = speechLang;
+
     const storyAtStart = story;
     committedRef.current = "";
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interimTranscript = "";
       let finalTranscript = "";
@@ -137,10 +176,6 @@ export default function NewStoryPage() {
         const transcript = result[0].transcript;
         if (result.isFinal) {
           finalTranscript += transcript + " ";
-          // Surface the detected language if the browser exposes it
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const lang = (result as any)[0]?.lang ?? null;
-          if (lang) setDetectedLang(lang);
         } else {
           interimTranscript += transcript;
         }
@@ -148,27 +183,47 @@ export default function NewStoryPage() {
       committedRef.current += finalTranscript;
       setStory(storyAtStart + committedRef.current + interimTranscript);
     };
+
     recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+
+    recognition.onerror = (event: Event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errEvent = event as any;
+      const code: string = errEvent?.error ?? "unknown";
+      if (code === "language-not-supported") {
+        setSpeechError(`"${LANGUAGES.find(([t]) => t === speechLang)?.[1] ?? speechLang}" is not supported by your browser for speech. Try Chrome on desktop.`);
+      } else if (code === "not-allowed") {
+        setSpeechError("Microphone access was denied. Please allow it in your browser settings.");
+      } else if (code !== "aborted") {
+        setSpeechError(`Speech error: ${code}`);
+      }
+      setIsListening(false);
+    };
+
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
   }, [speechLang, story]);
 
-  const stopListening = () => {
+  const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isListening) stopListening();
     setLoading(true);
     setError(null);
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      // Find the human-readable name for the selected BCP-47 tag
+      const langLabel = LANGUAGES.find(([tag]) => tag === speechLang)?.[1] ?? null;
+
       const res = await fetch("/api/clean-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -177,6 +232,7 @@ export default function NewStoryPage() {
           tellerName: teller,
           rawText: story,
           locationName: location,
+          language: langLabel,   // pass the confirmed language to the API
           userId: user?.id ?? null,
         }),
       });
@@ -298,51 +354,28 @@ export default function NewStoryPage() {
                       The story
                     </label>
                     {isSpeechSupported && (
-                      <div className="flex items-center gap-2">
-                        {/* Language selector */}
-                        {!isListening && (
-                          <div className="relative flex items-center gap-1">
-                            <Languages size={12} className="text-neutral-400 absolute left-2 pointer-events-none" />
-                            <select
-                              value={speechLang}
-                              onChange={(e) => setSpeechLang(e.target.value)}
-                              className="text-xs pl-6 pr-2 py-1.5 rounded-full border border-neutral-200 bg-white text-neutral-600 focus:outline-none focus:border-neutral-400 cursor-pointer appearance-none"
-                            >
-                              <option value="">Auto-detect</option>
-                              <option value="en-US">English</option>
-                              <option value="hi-IN">Hindi</option>
-                              <option value="ne-NP">Nepali</option>
-                              <option value="es-ES">Spanish</option>
-                              <option value="fr-FR">French</option>
-                              <option value="pt-BR">Portuguese</option>
-                              <option value="ar-SA">Arabic</option>
-                              <option value="zh-CN">Chinese</option>
-                              <option value="ja-JP">Japanese</option>
-                              <option value="ko-KR">Korean</option>
-                              <option value="de-DE">German</option>
-                              <option value="ru-RU">Russian</option>
-                              <option value="sw-KE">Swahili</option>
-                              <option value="yo-NG">Yoruba</option>
-                              <option value="ig-NG">Igbo</option>
-                              <option value="ha-NG">Hausa</option>
-                              <option value="bn-BD">Bengali</option>
-                              <option value="ta-IN">Tamil</option>
-                              <option value="te-IN">Telugu</option>
-                              <option value="ur-PK">Urdu</option>
-                              <option value="id-ID">Indonesian</option>
-                              <option value="ms-MY">Malay</option>
-                              <option value="vi-VN">Vietnamese</option>
-                              <option value="th-TH">Thai</option>
-                              <option value="tr-TR">Turkish</option>
-                            </select>
-                          </div>
-                        )}
-                        {/* Detected language badge */}
-                        {detectedLang && (
-                          <span className="text-xs text-neutral-400 bg-neutral-100 border border-neutral-200 rounded-full px-2 py-1">
-                            {detectedLang}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {/* Language selector — always visible so user sets it before starting */}
+                        <div className="relative flex items-center">
+                          <Languages size={12} className="text-neutral-400 absolute left-2.5 pointer-events-none z-10" />
+                          <select
+                            value={speechLang}
+                            disabled={isListening}
+                            onChange={(e) => {
+                              setSpeechLang(e.target.value);
+                              setSpeechError(null);
+                            }}
+                            className="text-xs pl-7 pr-6 py-1.5 rounded-full border border-neutral-200 bg-white text-neutral-600 focus:outline-none focus:border-neutral-400 cursor-pointer appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {LANGUAGES.map(([tag, label, native]) => (
+                              <option key={tag} value={tag}>
+                                {label} — {native}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown size={10} className="text-neutral-400 absolute right-2.5 pointer-events-none" />
+                        </div>
+
                         {/* Mic toggle */}
                         <button
                           type="button"
@@ -369,6 +402,30 @@ export default function NewStoryPage() {
                       </div>
                     )}
                   </div>
+                 {/* Speech error */}
+                 {speechError && (
+                   <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-2">
+                     <AlertCircle size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                     <p className="text-xs text-amber-700">{speechError}</p>
+                   </div>
+                 )}
+                 {/* Listening indicator */}
+                 {isListening && (
+                   <div className="flex items-center gap-2 mb-2 px-1">
+                     <span className="flex gap-0.5">
+                       {[0,1,2].map((i) => (
+                         <span
+                           key={i}
+                           className="w-0.5 h-3 bg-red-400 rounded-full animate-pulse"
+                           style={{ animationDelay: `${i * 0.15}s` }}
+                         />
+                       ))}
+                     </span>
+                     <span className="text-xs text-red-500 font-medium">
+                       Listening in {LANGUAGES.find(([t]) => t === speechLang)?.[1] ?? speechLang}…
+                     </span>
+                   </div>
+                 )}
                   <textarea
                     required
                     value={story}

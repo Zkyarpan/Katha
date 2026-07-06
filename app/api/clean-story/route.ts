@@ -44,10 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { title, tellerName, rawText, locationName, userId } = body;
-  // `language` from the body is accepted but not used directly —
-  // we always ask the AI to detect the source language so the stored
-  // value reflects what the text actually was, not what the user guessed.
+  const { title, tellerName, rawText, locationName, userId, language: hintLang } = body;
 
   if (!title || !tellerName || !rawText) {
     return NextResponse.json(
@@ -58,13 +55,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     // 2. Ask the AI to clean up, translate if necessary, and return polished
-    //    English. Translation + cleanup happen in a single prompt so we don't
-    //    need a separate translation call.
+    //    English. If the client told us the source language, include it in the
+    //    prompt so the model doesn't have to guess — this is the key accuracy fix.
+    const langContext = hintLang && hintLang.toLowerCase() !== "english"
+      ? `The story is told in ${hintLang}. Translate it faithfully to English first, preserving all cultural names, places, and meaning. `
+      : `If the story is not in English, translate it to English, keeping cultural details intact. `;
+
     const cleanPrompt =
-      `Clean up and structure this folk tale into a well-written short story. ` +
-      `If the original text is not in English, first translate it to English, ` +
-      `keeping cultural details and meaning intact. ` +
-      `Then return only the polished English story. Story: ${rawText}`;
+      `You are preserving an oral folk tale. ${langContext}` +
+      `Then clean up grammar, structure and flow into a well-written short story. ` +
+      `Keep the storyteller's original voice and all cultural references. ` +
+      `Return only the final polished English story with no extra commentary. ` +
+      `Story: ${rawText}`;
 
     const cleanedText = await askGranite(cleanPrompt);
 
@@ -75,9 +77,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       `"Mountain Spirit" or "Trickster Tale") that best describes it. ` +
       `Reply with only the tag, no punctuation or explanation. Story: ${cleanedText}`;
 
-    const langPrompt =
-      `What language was the original text written in? ` +
-      `Reply with just the language name, nothing else. Text: ${rawText}`;
+    const langPrompt = hintLang
+      ? Promise.resolve(hintLang)
+      : askGranite(
+          `What language is this text written in? Reply with only the language name, nothing else. Text: ${rawText}`
+        );
 
     // Geocode using OpenStreetMap Nominatim (no API key required).
     const geocodePromise = locationName
@@ -91,7 +95,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const [rawTag, rawLang, geoData] = await Promise.all([
       askGranite(tagPrompt),
-      askGranite(langPrompt),
+      langPrompt,
       geocodePromise,
     ]);
 
