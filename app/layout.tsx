@@ -14,6 +14,15 @@ export const metadata: Metadata = {
   title: "Katha — Stories That Must Not Be Forgotten",
   description:
     "Preserve oral folk tales with AI and reimagine them as new creative works.",
+  icons: {
+    icon: [
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=1" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({
