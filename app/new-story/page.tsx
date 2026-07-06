@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
@@ -11,7 +11,6 @@ import {
   Sparkles,
   User,
   BookText,
-  PenLine,
   Mic,
   MicOff,
   MapPin,
@@ -23,6 +22,7 @@ import {
   BookOpen,
   LocateFixed,
   Loader2,
+  Languages,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -70,6 +70,8 @@ export default function NewStoryPage() {
   // Speech recognition
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const [detectedLang, setDetectedLang] = useState<string | null>(null);
+  const [speechLang, setSpeechLang] = useState(""); // "" = auto-detect
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const committedRef = useRef("");
 
@@ -89,7 +91,7 @@ export default function NewStoryPage() {
         try {
           const { latitude, longitude } = position.coords;
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=en`
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=en`,
           );
           const data = await res.json();
           const addr = data.address ?? {};
@@ -103,7 +105,7 @@ export default function NewStoryPage() {
         } catch {
           // Fallback: just show coords
           setLocation(
-            `${position.coords.latitude.toFixed(2)}°, ${position.coords.longitude.toFixed(2)}°`
+            `${position.coords.latitude.toFixed(2)}°, ${position.coords.longitude.toFixed(2)}°`,
           );
         } finally {
           setLocatingUser(false);
@@ -112,27 +114,36 @@ export default function NewStoryPage() {
       () => {
         setLocatingUser(false);
       },
-      { enableHighAccuracy: false, timeout: 10000 }
+      { enableHighAccuracy: false, timeout: 10000 },
     );
   };
 
   // ── Speech recognition ──
-  const startListening = () => {
+  const startListening = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!SR) return;
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    // "" = let the browser/OS detect the language automatically
+    recognition.lang = speechLang;
     const storyAtStart = story;
     committedRef.current = "";
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interimTranscript = "";
       let finalTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalTranscript += transcript + " ";
-        else interimTranscript += transcript;
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) {
+          finalTranscript += transcript + " ";
+          // Surface the detected language if the browser exposes it
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const lang = (result as any)[0]?.lang ?? null;
+          if (lang) setDetectedLang(lang);
+        } else {
+          interimTranscript += transcript;
+        }
       }
       committedRef.current += finalTranscript;
       setStory(storyAtStart + committedRef.current + interimTranscript);
@@ -142,7 +153,7 @@ export default function NewStoryPage() {
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  };
+  }, [speechLang, story]);
 
   const stopListening = () => {
     recognitionRef.current?.stop();
@@ -184,18 +195,17 @@ export default function NewStoryPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-24">
         {/* ── Back button ── */}
         <Link
           href="/"
-          className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-900 transition-colors group"
         >
           <ArrowLeft
-            size={16}
+            size={15}
             className="group-hover:-translate-x-0.5 transition-transform"
           />
-          Back to stories
+          Back
         </Link>
 
         {/* ── Page header ── */}
@@ -288,28 +298,75 @@ export default function NewStoryPage() {
                       The story
                     </label>
                     {isSpeechSupported && (
-                      <button
-                        type="button"
-                        onClick={isListening ? stopListening : startListening}
-                        className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
-                          isListening
-                            ? "border-red-200 bg-red-50 text-red-600"
-                            : "border-neutral-200 bg-white text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
-                        }`}
-                      >
-                        {isListening ? (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            <MicOff size={12} />
-                            Stop
-                          </>
-                        ) : (
-                          <>
-                            <Mic size={12} />
-                            Dictate
-                          </>
+                      <div className="flex items-center gap-2">
+                        {/* Language selector */}
+                        {!isListening && (
+                          <div className="relative flex items-center gap-1">
+                            <Languages size={12} className="text-neutral-400 absolute left-2 pointer-events-none" />
+                            <select
+                              value={speechLang}
+                              onChange={(e) => setSpeechLang(e.target.value)}
+                              className="text-xs pl-6 pr-2 py-1.5 rounded-full border border-neutral-200 bg-white text-neutral-600 focus:outline-none focus:border-neutral-400 cursor-pointer appearance-none"
+                            >
+                              <option value="">Auto-detect</option>
+                              <option value="en-US">English</option>
+                              <option value="hi-IN">Hindi</option>
+                              <option value="ne-NP">Nepali</option>
+                              <option value="es-ES">Spanish</option>
+                              <option value="fr-FR">French</option>
+                              <option value="pt-BR">Portuguese</option>
+                              <option value="ar-SA">Arabic</option>
+                              <option value="zh-CN">Chinese</option>
+                              <option value="ja-JP">Japanese</option>
+                              <option value="ko-KR">Korean</option>
+                              <option value="de-DE">German</option>
+                              <option value="ru-RU">Russian</option>
+                              <option value="sw-KE">Swahili</option>
+                              <option value="yo-NG">Yoruba</option>
+                              <option value="ig-NG">Igbo</option>
+                              <option value="ha-NG">Hausa</option>
+                              <option value="bn-BD">Bengali</option>
+                              <option value="ta-IN">Tamil</option>
+                              <option value="te-IN">Telugu</option>
+                              <option value="ur-PK">Urdu</option>
+                              <option value="id-ID">Indonesian</option>
+                              <option value="ms-MY">Malay</option>
+                              <option value="vi-VN">Vietnamese</option>
+                              <option value="th-TH">Thai</option>
+                              <option value="tr-TR">Turkish</option>
+                            </select>
+                          </div>
                         )}
-                      </button>
+                        {/* Detected language badge */}
+                        {detectedLang && (
+                          <span className="text-xs text-neutral-400 bg-neutral-100 border border-neutral-200 rounded-full px-2 py-1">
+                            {detectedLang}
+                          </span>
+                        )}
+                        {/* Mic toggle */}
+                        <button
+                          type="button"
+                          onClick={isListening ? stopListening : startListening}
+                          className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+                            isListening
+                              ? "border-red-200 bg-red-50 text-red-600"
+                              : "border-neutral-200 bg-white text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                          }`}
+                        >
+                          {isListening ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                              <MicOff size={12} />
+                              Stop
+                            </>
+                          ) : (
+                            <>
+                              <Mic size={12} />
+                              Dictate
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                   <textarea
@@ -374,8 +431,8 @@ export default function NewStoryPage() {
                     },
                     {
                       icon: Mic,
-                      title: "Try dictating",
-                      desc: "Tap the mic button and speak your story aloud.",
+                      title: "Speak any language",
+                      desc: "Auto-detect is on by default — just speak and the browser transcribes whatever language you use.",
                     },
                     {
                       icon: User,
