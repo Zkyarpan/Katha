@@ -2,69 +2,68 @@
 
 import { useState, useRef } from "react";
 import {
-  Volume2,
-  VolumeX,
-  ChevronDown,
-  ChevronUp,
-  Languages,
+  Volume2, VolumeX, ChevronDown, ChevronUp,
+  Loader2, Globe, AlertCircle,
 } from "lucide-react";
 
 interface StoryReaderProps {
   storyId: string;
-  cleanedText: string;
-  originalLanguage: string;
+  cleanedText: string | null;
+  originalLanguage: string | null;
 }
 
 const LANGUAGES = [
-  "English",
-  "Spanish",
-  "French",
-  "Hindi",
-  "Nepali",
-  "Japanese",
-  "Chinese",
-  "Arabic",
-  "Portuguese",
-  "German",
+  "English", "Spanish", "French", "Hindi",
+  "Nepali", "Japanese", "Chinese", "Arabic",
+  "Portuguese", "German",
 ];
 
-export default function StoryReader({
-  storyId,
-  cleanedText,
-  originalLanguage,
-}: StoryReaderProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [language, setLanguage] = useState("English");
+export default function StoryReader({ storyId, cleanedText, originalLanguage }: StoryReaderProps) {
+  const [expanded,       setExpanded]       = useState(false);
+  const [language,       setLanguage]       = useState("English");
   const [translatedText, setTranslatedText] = useState<string | null>(null);
-  const [translating, setTranslating] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [translating,    setTranslating]    = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+  const [speaking,       setSpeaking]       = useState(false);
+  const synthRef  = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const displayText = translatedText ?? cleanedText ?? "";
-  const isLong = displayText.length > 800;
-  const visibleText =
-    isLong && !expanded ? displayText.slice(0, 800) : displayText;
+  const baseText     = cleanedText ?? "";
+  const displayText  = translatedText ?? baseText;
+  const isLong       = displayText.length > 1000;
+  const visibleText  = isLong && !expanded ? displayText.slice(0, 1000) : displayText;
+  const paragraphs   = visibleText.split("\n").map((p) => p.trim()).filter(Boolean);
 
   const handleLanguageChange = async (lang: string) => {
     setLanguage(lang);
-    if (lang === "English" || lang === originalLanguage) {
+    setTranslateError(null);
+
+    // If selecting English or the story's own language — just show original
+    const origLang = (originalLanguage ?? "English").trim().toLowerCase();
+    if (lang.toLowerCase() === "english" || lang.toLowerCase() === origLang) {
       setTranslatedText(null);
       return;
     }
+
+    if (!baseText) return;
+
     setTranslating(true);
     try {
-      const res = await fetch("/api/translate-story", {
-        method: "POST",
+      const res  = await fetch("/api/translate-story", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: cleanedText,
-          targetLanguage: lang,
-        }),
+        body:    JSON.stringify({ text: baseText, targetLanguage: lang }),
       });
       const data = await res.json();
-      if (data.translated) setTranslatedText(data.translated);
+      if (!res.ok) {
+        setTranslateError(data.error ?? "Translation failed. Please try again.");
+        setTranslatedText(null);
+      } else if (data.translated) {
+        setTranslatedText(data.translated);
+      } else {
+        setTranslateError("No translation returned. Please try again.");
+      }
     } catch {
-      // silent
+      setTranslateError("Network error — could not reach translation service.");
     } finally {
       setTranslating(false);
     }
@@ -76,67 +75,78 @@ export default function StoryReader({
       setSpeaking(false);
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(displayText);
-    utterance.rate = 0.9;
-    utterance.onend = () => setSpeaking(false);
+    const utterance  = new SpeechSynthesisUtterance(displayText);
+    utterance.rate   = 0.9;
+    utterance.onend  = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);
     synthRef.current = utterance;
     window.speechSynthesis.speak(utterance);
     setSpeaking(true);
   };
 
-  const paragraphs = visibleText
-    .split("\n")
-    .map((p) => p.trim())
-    .filter(Boolean);
-
   return (
     <div>
-      {/* ── Controls ── */}
-      <div className="flex items-center justify-between mb-10 pb-6 border-b border-neutral-100">
-        <div className="flex items-center gap-2.5">
-          <Languages size={14} className="text-neutral-400" />
+      {/* ── Toolbar ── */}
+      <div className="flex items-center justify-between gap-3 mb-8 pb-5 border-b border-neutral-100 flex-wrap">
+
+        {/* Language select */}
+        <div className="flex items-center gap-2">
+          <Globe size={14} className="text-neutral-400 flex-shrink-0" />
           <div className="relative">
             <select
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value)}
               disabled={translating}
-              className="appearance-none text-sm font-medium text-neutral-700 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-lg pl-3 pr-8 py-2 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-300 disabled:opacity-50"
+              className="appearance-none text-sm font-medium text-neutral-700 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-xl pl-3 pr-8 py-2 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 disabled:opacity-50"
             >
               {LANGUAGES.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang}
-                </option>
+                <option key={lang} value={lang}>{lang}</option>
               ))}
             </select>
-            <ChevronDown
-              size={12}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
-            />
+            <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           </div>
           {translating && (
-            <span className="text-xs text-neutral-400 animate-pulse">
+            <div className="flex items-center gap-1.5 text-xs text-purple-500">
+              <Loader2 size={12} className="animate-spin" />
               Translating…
+            </div>
+          )}
+          {!translating && translateError && (
+            <div className="flex items-center gap-1.5 text-xs text-red-500">
+              <AlertCircle size={12} />
+              {translateError}
+            </div>
+          )}
+          {!translating && !translateError && language !== "English" && translatedText && (
+            <span className="text-xs bg-purple-50 text-purple-600 border border-purple-100 px-2 py-0.5 rounded-full font-medium">
+              {language}
             </span>
           )}
         </div>
 
+        {/* Listen button */}
         <button
           onClick={handleReadAloud}
-          className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-all cursor-pointer active:scale-[0.97] ${
+          className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border transition-all cursor-pointer active:scale-[0.97] ${
             speaking
-              ? "text-neutral-900 bg-neutral-100 border-neutral-300"
-              : "text-neutral-500 bg-white hover:bg-neutral-50 border-neutral-200 hover:text-neutral-700 hover:border-neutral-300"
+              ? "text-white bg-neutral-900 border-neutral-900 shadow-sm"
+              : "text-neutral-600 bg-white hover:bg-neutral-50 border-neutral-200 hover:text-neutral-900 hover:border-neutral-300"
           }`}
         >
           {speaking ? (
             <>
-              <VolumeX size={15} />
+              <span className="flex gap-0.5 items-end">
+                {[3,5,4,6,3].map((h, i) => (
+                  <span key={i} className="w-0.5 rounded-full bg-white animate-pulse"
+                    style={{ height: h * 2.5, animationDelay: `${i * 0.1}s` }} />
+                ))}
+              </span>
+              <VolumeX size={14} />
               Stop
             </>
           ) : (
             <>
-              <Volume2 size={15} />
+              <Volume2 size={14} />
               Listen
             </>
           )}
@@ -145,44 +155,44 @@ export default function StoryReader({
 
       {/* ── Story text ── */}
       <div className="relative">
-        <div className="font-serif text-[1.175rem] leading-[1.9] tracking-[-0.003em] text-neutral-800">
+        <div className="font-sans text-[1.0625rem] leading-[1.9] tracking-[-0.006em] text-neutral-800 antialiased">
           {paragraphs.map((paragraph, i) => (
-            <p
-              key={i}
-              className={`mb-6 ${
-                i === 0
-                  ? "text-[1.3rem] leading-[1.8] text-neutral-900"
-                  : ""
-              }`}
-            >
+            <p key={i} className="mb-6">
               {paragraph}
             </p>
           ))}
         </div>
 
         {isLong && !expanded && (
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
         )}
       </div>
 
       {/* ── Expand / collapse ── */}
       {isLong && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1.5 mx-auto mt-6 text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
-        >
-          {expanded ? (
-            <>
-              Show less
-              <ChevronUp size={14} />
-            </>
-          ) : (
-            <>
-              Continue reading
-              <ChevronDown size={14} />
-            </>
+        <div className="flex flex-col items-center mt-6 gap-2">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-neutral-900 hover:bg-neutral-800 px-5 py-2.5 rounded-xl transition-all active:scale-[0.97] shadow-sm"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp size={14} />
+                Show less
+              </>
+            ) : (
+              <>
+                Continue reading
+                <ChevronDown size={14} />
+              </>
+            )}
+          </button>
+          {!expanded && (
+            <p className="text-xs text-neutral-400">
+              {Math.ceil((displayText.length - 1000) / 5)} more words
+            </p>
           )}
-        </button>
+        </div>
       )}
     </div>
   );

@@ -50,6 +50,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
+        serif: ["var(--font-serif)"],
       },
       animation: {
         gradient: "gradient 8s linear infinite",

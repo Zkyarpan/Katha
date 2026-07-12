@@ -1,14 +1,7 @@
 "use client";
 
-// ---------------------------------------------------------------------------
-// components/VoicePlayer.tsx
-//
-// Plays back the original voice recording of a story.
-// Displayed on the story detail page when voice_recording_url is set.
-// ---------------------------------------------------------------------------
-
 import { useRef, useState, useEffect } from "react";
-import { Mic, Play, Pause, Volume2 } from "lucide-react";
+import { Mic, Play, Pause, Headphones } from "lucide-react";
 
 interface VoicePlayerProps {
   url: string;
@@ -16,22 +9,18 @@ interface VoicePlayerProps {
 }
 
 export default function VoicePlayer({ url, tellerName }: VoicePlayerProps) {
-  const audioRef  = useRef<HTMLAudioElement | null>(null);
-  const rafRef    = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef   = useRef<number>(0);
 
   const [playing,  setPlaying]  = useState(false);
-  const [progress, setProgress] = useState(0);   // 0–1
-  const [current,  setCurrent]  = useState(0);   // seconds
-  const [duration, setDuration] = useState(0);   // seconds
+  const [progress, setProgress] = useState(0);
+  const [current,  setCurrent]  = useState(0);
+  const [duration, setDuration] = useState(0);
   const [ready,    setReady]    = useState(false);
-
-  // ── helpers ──────────────────────────────────────────────────────────────
 
   const fmt = (s: number) => {
     if (!isFinite(s)) return "0:00";
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return `${m}:${sec.toString().padStart(2, "0")}`;
+    return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
   };
 
   const tick = () => {
@@ -42,25 +31,17 @@ export default function VoicePlayer({ url, tellerName }: VoicePlayerProps) {
     if (!el.paused) rafRef.current = requestAnimationFrame(tick);
   };
 
-  // ── event wiring ─────────────────────────────────────────────────────────
-
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-
-    const onLoaded = () => {
-      setDuration(el.duration);
-      setReady(true);
-    };
+    const onLoaded = () => { setDuration(el.duration); setReady(true); };
     const onEnded  = () => { setPlaying(false); setProgress(0); setCurrent(0); };
     const onPause  = () => setPlaying(false);
     const onPlay   = () => { setPlaying(true); rafRef.current = requestAnimationFrame(tick); };
-
     el.addEventListener("loadedmetadata", onLoaded);
     el.addEventListener("ended",          onEnded);
     el.addEventListener("pause",          onPause);
     el.addEventListener("play",           onPlay);
-
     return () => {
       el.removeEventListener("loadedmetadata", onLoaded);
       el.removeEventListener("ended",          onEnded);
@@ -71,12 +52,10 @@ export default function VoicePlayer({ url, tellerName }: VoicePlayerProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── controls ─────────────────────────────────────────────────────────────
-
   const togglePlay = () => {
     const el = audioRef.current;
     if (!el) return;
-    if (el.paused) { el.play(); } else { el.pause(); }
+    if (el.paused) el.play(); else el.pause();
   };
 
   const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,57 +67,75 @@ export default function VoicePlayer({ url, tellerName }: VoicePlayerProps) {
     setCurrent(t);
   };
 
-  // ── render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 px-4 py-3">
-      {/* Hidden native audio element */}
+    <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-violet-50 overflow-hidden">
       <audio ref={audioRef} src={url} preload="metadata" />
 
-      <div className="flex items-center gap-2 mb-2.5">
-        <Mic size={12} className="text-purple-500 flex-shrink-0" />
-        <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
-          Original Voice
-        </span>
-        <Volume2 size={11} className="text-purple-400 ml-auto" />
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-purple-100">
+        <div className="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center flex-shrink-0">
+          <Mic size={13} className="text-white" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-purple-900 uppercase tracking-widest">
+            Original Voice
+          </p>
+          <p className="text-[11px] text-purple-500 mt-0.5">
+            {tellerName}
+          </p>
+        </div>
+        <Headphones size={14} className="text-purple-300 ml-auto" />
       </div>
 
-      <p className="text-xs text-purple-600 mb-3 leading-relaxed">
-        Hear {tellerName} tell this story in their own words.
-      </p>
-
-      {/* Controls row */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={togglePlay}
-          disabled={!ready}
-          className="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 flex items-center justify-center text-white transition-colors flex-shrink-0"
-          aria-label={playing ? "Pause" : "Play"}
-        >
-          {playing
-            ? <Pause size={13} className="ml-0" />
-            : <Play  size={13} className="ml-0.5" />
-          }
-        </button>
-
-        {/* Scrubber */}
-        <div className="flex-1 flex items-center gap-2">
+      {/* Player */}
+      <div className="px-4 pb-4 pt-3">
+        {/* Waveform-style progress track */}
+        <div className="relative mb-3">
+          <div className="flex items-end gap-[2px] h-8 mb-2 overflow-hidden">
+            {Array.from({ length: 48 }).map((_, i) => {
+              const h = 20 + Math.sin(i * 0.7) * 14 + Math.sin(i * 1.3) * 8;
+              const filled = (i / 48) <= progress;
+              return (
+                <div
+                  key={i}
+                  className="flex-1 rounded-full transition-colors duration-100"
+                  style={{
+                    height: `${h}px`,
+                    background: filled ? "#9333ea" : "#e9d5ff",
+                  }}
+                />
+              );
+            })}
+          </div>
           <input
             type="range"
-            min={0}
-            max={1}
-            step={0.001}
+            min={0} max={1} step={0.001}
             value={progress}
             onChange={seek}
             disabled={!ready}
-            className="flex-1 h-1.5 rounded-full accent-purple-600 cursor-pointer disabled:opacity-40"
-            style={{
-              background: `linear-gradient(to right, #9333ea ${progress * 100}%, #e9d5ff ${progress * 100}%)`,
-            }}
+            className="absolute inset-0 w-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
           />
-          <span className="text-[11px] text-purple-500 tabular-nums w-[60px] text-right flex-shrink-0">
-            {fmt(current)} / {fmt(duration)}
-          </span>
+        </div>
+
+        {/* Controls row */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={togglePlay}
+            disabled={!ready}
+            className="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 flex items-center justify-center text-white transition-all shadow-sm active:scale-95 flex-shrink-0"
+            aria-label={playing ? "Pause" : "Play"}
+          >
+            {playing
+              ? <Pause size={14} />
+              : <Play  size={14} className="ml-0.5" />
+            }
+          </button>
+
+          {/* Time */}
+          <div className="flex-1 flex justify-between items-center">
+            <span className="text-xs font-mono text-purple-500">{fmt(current)}</span>
+            <span className="text-xs font-mono text-purple-300">{fmt(duration)}</span>
+          </div>
         </div>
       </div>
     </div>

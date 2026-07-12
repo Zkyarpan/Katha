@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
-import StoryCard from "@/components/StoryCard";
+import { ArrowLeft, Plus, BookOpen } from "lucide-react";
+import StoriesGrid from "@/components/StoriesGrid";
 import { supabase } from "@/lib/supabase";
 import { BlurFade } from "@/components/ui/blur-fade";
 
@@ -24,23 +24,28 @@ export default async function AllStoriesPage() {
               size={15}
               className="group-hover:-translate-x-0.5 transition-transform"
             />
-            Back 
+            Back
           </Link>
         </BlurFade>
 
         <BlurFade delay={0.15}>
           <div className="flex items-center justify-between mb-8 mt-5">
-            <div>
-              <h1 className="text-2xl font-bold text-neutral-900">
-                All Stories
-              </h1>
-              <p className="text-sm text-neutral-500 mt-1">
-                {storyList.length} stories preserved from around the world
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-neutral-900 flex items-center justify-center flex-shrink-0">
+                <BookOpen size={18} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+                  All Stories
+                </h1>
+                <p className="text-sm text-neutral-500 mt-0.5">
+                  {storyList.length} {storyList.length === 1 ? "story" : "stories"} preserved from around the world
+                </p>
+              </div>
             </div>
             <Link
               href="/new-story"
-              className="inline-flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-all active:scale-[0.98]"
             >
               <Plus size={14} />
               Add a Story
@@ -48,34 +53,9 @@ export default async function AllStoriesPage() {
           </div>
         </BlurFade>
 
-        {storyList.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {storyList.map((story, index) => (
-              <BlurFade key={story.id} delay={0.05 * index}>
-                <StoryCard
-                  id={story.id}
-                  title={story.title}
-                  tellerName={story.teller_name}
-                  coverImage={story.cover_image_url}
-                  tag={story.tag ?? undefined}
-                />
-              </BlurFade>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-16 border border-dashed border-neutral-200 rounded-xl">
-            <p className="text-neutral-400 text-sm mb-4">
-              No stories yet — be the first to preserve one
-            </p>
-            <Link
-              href="/new-story"
-              className="inline-flex items-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
-            >
-              <Plus size={15} />
-              Add a Story
-            </Link>
-          </div>
-        )}
+        <BlurFade delay={0.2}>
+          <StoriesGrid stories={storyList} />
+        </BlurFade>
       </div>
     </div>
   );

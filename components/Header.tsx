@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Plus, LogOut, Shield, RefreshCw } from "lucide-react";
+import { BookOpen, Plus, LogOut, Shield, User as UserIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import AuthModal from "@/components/AuthModal";
@@ -208,6 +208,15 @@ export default function Header() {
                     </div>
 
                     <div className="py-1">
+                      <Link
+                        href={`/profile/${user.id}`}
+                        onClick={() => setShowMenu(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                      >
+                        <UserIcon size={13} />
+                        View Profile
+                      </Link>
+
                       {/* Mobile-only nav items */}
                       <Link
                         href="/my-stories"

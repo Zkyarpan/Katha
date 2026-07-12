@@ -51,10 +51,12 @@ function MapContent({ stories }: { stories: MapStory[] }) {
 
   return (
     <>
+      {/* CartoDB Voyager — clean, labelled, Google Maps-like style; no API key */}
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        // Keep tiles cached across re-renders; don't re-request on every mount
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        subdomains="abcd"
+        maxZoom={20}
         keepBuffer={4}
         updateWhenIdle={true}
         updateWhenZooming={false}
@@ -171,16 +173,16 @@ export default function OriginMap({ stories }: { stories: MapStory[] }) {
         }
       `}</style>
 
-      <div className="w-full h-[440px] rounded-xl overflow-hidden">
+      <div className="w-full h-[480px] rounded-xl overflow-hidden">
         <MapContainer
           center={initCenter}
           zoom={initZoom}
           minZoom={2}
           maxZoom={18}
-          scrollWheelZoom={false}
+          scrollWheelZoom={true}
           zoomControl={true}
           attributionControl={true}
-          style={{ height: "100%", width: "100%", background: "#e8f0fe" }}
+          style={{ height: "100%", width: "100%", background: "#f0ede8" }}
           // Prevent the map from re-initialising on every parent re-render
           id="katha-origin-map"
         >
