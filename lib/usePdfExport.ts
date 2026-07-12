@@ -3,19 +3,15 @@
 // ---------------------------------------------------------------------------
 // lib/usePdfExport.ts
 //
-// Hook that generates a downloadable PDF picture-book from a set of pages
-// (each with an imageUrl and text). Uses jsPDF directly in the browser —
-// no server round-trip, no html2canvas.
+// Generates a professional downloadable PDF picture-book.
 //
-// Layout per page (A4 landscape, mm):
-//   ┌──────────────────────────────────────────┐
-//   │  [story title – top, small]              │
-//   │  ┌──────────────────────────────────────┐│
-//   │  │          illustration                ││
-//   │  └──────────────────────────────────────┘│
-//   │  [page text – centred, serif, below img] │
-//   │  [page n / total  – bottom right, muted] │
-//   └──────────────────────────────────────────┘
+// Structure (A4 Portrait — 210 × 297 mm):
+//   Page 1  — Cover  : full-bleed illustration + title overlay + teller credit
+//   Pages 2–N — Story : top half = illustration, bottom half = styled text
+//   Last page — Closing: "The End" decorative page with Katha branding
+//
+// Why portrait?  Text paragraphs read naturally top-to-bottom; landscape
+// forces text into a tiny strip because the image eats the width.
 // ---------------------------------------------------------------------------
 
 import { useState, useCallback } from "react";
@@ -27,35 +23,313 @@ interface Page {
 
 interface UsePdfExportReturn {
   exporting: boolean;
+  progress: number;          // 0–100 for progress feedback
   exportPdf: (pages: Page[], storyTitle: string, tellerName: string) => Promise<void>;
 }
 
-// Page dimensions in mm (A4 landscape)
-const PW = 297;  // page width
-const PH = 210;  // page height
-const MARGIN = 14;
+// ── A4 Portrait dimensions (mm) ───────────────────────────────────────────────
+const PW      = 210;
+const PH      = 297;
+const MARGIN  = 16;
+const INNER_W = PW - MARGIN * 2;   // 178 mm usable width
 
-/** Fetch an image URL and return a base64 data-URL string. */
-async function toDataUrl(src: string): Promise<string> {
-  // Proxy through a canvas so cross-origin images are handled
-  return new Promise((resolve, reject) => {
+// Warm storybook palette (RGB)
+const COL = {
+  bg:        [255, 252, 247] as [number,number,number],   // creamy white
+  bgDark:    [42,  28,  60]  as [number,number,number],   // deep plum (cover)
+  accent:    [124, 58,  237] as [number,number,number],   // violet
+  accentSoft:[237, 233, 254] as [number,number,number],   // lavender tint
+  text:      [30,  20,  50]  as [number,number,number],   // near-black
+  muted:     [120, 100, 150] as [number,number,number],   // muted purple-grey
+  gold:      [217, 157, 47]  as [number,number,number],   // warm gold
+  white:     [255, 255, 255] as [number,number,number],
+};
+
+// ── Image loader ──────────────────────────────────────────────────────────────
+async function toDataUrl(src: string): Promise<string | null> {
+  return new Promise((resolve) => {
     const img = new window.Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width  = img.naturalWidth  || 600;
-      canvas.height = img.naturalHeight || 450;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/jpeg", 0.85));
+      try {
+        const canvas    = document.createElement("canvas");
+        canvas.width    = img.naturalWidth  || 800;
+        canvas.height   = img.naturalHeight || 600;
+        const ctx       = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/jpeg", 0.88));
+      } catch {
+        resolve(null);           // tainted canvas (CORS) — skip image gracefully
+      }
     };
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
+    img.onerror = () => resolve(null);
+    // Small delay so the browser has time to cache the image from the viewer
+    setTimeout(() => { img.src = src; }, 50);
   });
 }
 
+// ── Decorative corner marks ───────────────────────────────────────────────────
+function drawCorners(
+  doc: import("jspdf").jsPDF,
+  x: number, y: number, w: number, h: number,
+  size = 6,
+  color: [number,number,number] = COL.gold,
+) {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.8);
+  const corners: [number, number, number, number][] = [
+    [x,       y,       x + size, y       ],  // TL horizontal
+    [x,       y,       x,        y + size],  // TL vertical
+    [x+w-size,y,       x + w,    y       ],  // TR horizontal
+    [x+w,     y,       x + w,    y + size],  // TR vertical
+    [x,       y+h-size,x,        y + h   ],  // BL vertical
+    [x,       y+h,     x + size, y + h   ],  // BL horizontal
+    [x+w,     y+h-size,x + w,    y + h   ],  // BR vertical
+    [x+w-size,y+h,     x + w,    y + h   ],  // BR horizontal
+  ];
+  corners.forEach(([x1,y1,x2,y2]) => doc.line(x1,y1,x2,y2));
+}
+
+// ── Dot ornament row ──────────────────────────────────────────────────────────
+function drawOrnamentLine(
+  doc: import("jspdf").jsPDF,
+  y: number,
+  color: [number,number,number] = COL.gold,
+) {
+  doc.setFillColor(...color);
+  const cx = PW / 2;
+  const dots: number[] = [-24, -12, 0, 12, 24];
+  dots.forEach((dx) => doc.circle(cx + dx, y, 0.9, "F"));
+  // thin line through dots
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.2);
+  doc.line(cx - 32, y, cx + 32, y);
+}
+
+// ── Cover page ────────────────────────────────────────────────────────────────
+async function buildCoverPage(
+  doc: import("jspdf").jsPDF,
+  imageUrl: string,
+  title: string,
+  tellerName: string,
+) {
+  // Deep plum background
+  doc.setFillColor(...COL.bgDark);
+  doc.rect(0, 0, PW, PH, "F");
+
+  // Full-page illustration (top 65%)
+  const imgH = PH * 0.62;
+  const dataUrl = await toDataUrl(imageUrl);
+  if (dataUrl) {
+    doc.addImage(dataUrl, "JPEG", 0, 0, PW, imgH, undefined, "MEDIUM");
+    // gradient overlay — fake with a semi-transparent rect
+    doc.setFillColor(42, 28, 60);
+    doc.setGState(doc.GState({ opacity: 0.55 }));
+    doc.rect(0, imgH * 0.55, PW, imgH * 0.45, "F");
+    doc.setGState(doc.GState({ opacity: 1 }));
+  } else {
+    // placeholder gradient
+    doc.setFillColor(80, 50, 120);
+    doc.rect(0, 0, PW, imgH, "F");
+  }
+
+  // Gold rule at bottom of image area
+  doc.setDrawColor(...COL.gold);
+  doc.setLineWidth(1);
+  doc.line(MARGIN, imgH + 0.5, PW - MARGIN, imgH + 0.5);
+
+  // "A Children's Picture Book" eyebrow
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...COL.gold);
+  doc.text("✦  A CHILDREN'S PICTURE BOOK  ✦", PW / 2, imgH + 10, { align: "center" });
+
+  // Title
+  const titleLines = doc.splitTextToSize(title.toUpperCase(), INNER_W - 10);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(titleLines.length > 1 ? 22 : 28);
+  doc.setTextColor(...COL.white);
+  let titleY = imgH + 24;
+  doc.text(titleLines, PW / 2, titleY, { align: "center", lineHeightFactor: 1.3 });
+  titleY += (titleLines.length - 1) * (doc.getFontSize() * 0.352 * 1.3);
+
+  // Teller credit
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...COL.muted);
+  doc.text(`A story told by ${tellerName}`, PW / 2, titleY + 14, { align: "center" });
+
+  // Katha branding bottom
+  drawOrnamentLine(doc, PH - 24);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...COL.gold);
+  doc.text("KATHA", PW / 2, PH - 14, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...COL.muted);
+  doc.text("Preserving Stories That Must Not Be Forgotten", PW / 2, PH - 8, { align: "center" });
+
+  // Corner decorations
+  drawCorners(doc, MARGIN - 4, MARGIN - 4, INNER_W + 8, PH - MARGIN * 2 + 8);
+}
+
+// ── Story page (image top + text bottom) ──────────────────────────────────────
+async function buildStoryPage(
+  doc: import("jspdf").jsPDF,
+  pageIndex: number,
+  totalPages: number,
+  imageUrl: string,
+  text: string,
+  title: string,
+) {
+  // Background
+  doc.setFillColor(...COL.bg);
+  doc.rect(0, 0, PW, PH, "F");
+
+  // Thin top border strip
+  doc.setFillColor(...COL.accentSoft);
+  doc.rect(0, 0, PW, 7, "F");
+
+  // Book title in top strip
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...COL.accent);
+  doc.text(title.toUpperCase(), PW / 2, 4.6, { align: "center" });
+
+  // ── Illustration area (top 52% of page, below strip) ──
+  const imgAreaY = 9;
+  const imgAreaH = PH * 0.50;
+  const imgAreaW = INNER_W;
+  const imgX     = MARGIN;
+
+  // Image frame shadow
+  doc.setFillColor(200, 190, 220);
+  doc.roundedRect(imgX + 1.5, imgAreaY + 1.5, imgAreaW, imgAreaH, 4, 4, "F");
+
+  // Image
+  const dataUrl = await toDataUrl(imageUrl);
+  if (dataUrl) {
+    // clip to rounded rect by drawing image then overlaying corners
+    doc.addImage(dataUrl, "JPEG", imgX, imgAreaY, imgAreaW, imgAreaH, undefined, "MEDIUM");
+    // re-draw rounded corners as mask overlay using bg colour
+    doc.setFillColor(...COL.bg);
+    // top-left
+    doc.rect(imgX, imgAreaY, 4, 4, "F");
+    doc.circle(imgX + 4, imgAreaY + 4, 4, "F");
+    // top-right
+    doc.rect(imgX + imgAreaW - 4, imgAreaY, 4, 4, "F");
+    doc.circle(imgX + imgAreaW - 4, imgAreaY + 4, 4, "F");
+    // bottom-left
+    doc.rect(imgX, imgAreaY + imgAreaH - 4, 4, 4, "F");
+    doc.circle(imgX + 4, imgAreaY + imgAreaH - 4, 4, "F");
+    // bottom-right
+    doc.rect(imgX + imgAreaW - 4, imgAreaY + imgAreaH - 4, 4, 4, "F");
+    doc.circle(imgX + imgAreaW - 4, imgAreaY + imgAreaH - 4, 4, "F");
+    // image border
+    doc.setDrawColor(...COL.accent);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(imgX, imgAreaY, imgAreaW, imgAreaH, 4, 4, "S");
+  } else {
+    doc.setFillColor(...COL.accentSoft);
+    doc.roundedRect(imgX, imgAreaY, imgAreaW, imgAreaH, 4, 4, "F");
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(...COL.muted);
+    doc.text("Illustration", PW / 2, imgAreaY + imgAreaH / 2, { align: "center" });
+  }
+
+  // ── Text area (bottom ~42% of page) ──
+  const textAreaY = imgAreaY + imgAreaH + 8;
+  const textAreaH = PH - textAreaY - 18;
+
+  // Subtle text card background
+  doc.setFillColor(249, 246, 255);
+  doc.roundedRect(MARGIN, textAreaY, INNER_W, textAreaH, 3, 3, "F");
+  doc.setDrawColor(...COL.accentSoft);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(MARGIN, textAreaY, INNER_W, textAreaH, 3, 3, "S");
+
+  // Page number badge top-right of text card
+  doc.setFillColor(...COL.accent);
+  doc.roundedRect(PW - MARGIN - 16, textAreaY - 4, 16, 8, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...COL.white);
+  doc.text(`${pageIndex + 1} / ${totalPages}`, PW - MARGIN - 8, textAreaY + 0.8, { align: "center" });
+
+  // Story text — nicely typeset
+  doc.setFont("times", "normal");
+  doc.setFontSize(12.5);
+  doc.setTextColor(...COL.text);
+
+  const textPad  = 8;
+  const textW    = INNER_W - textPad * 2;
+  const wrapped  = doc.splitTextToSize(text, textW);
+
+  // Calculate vertical centering within the text card
+  const lineH    = 12.5 * 0.352 * 1.7;   // font-size × mm-per-pt × line-height
+  const blockH   = wrapped.length * lineH;
+  const textStartY = textAreaY + (textAreaH - blockH) / 2 + lineH * 0.7;
+
+  doc.text(wrapped, PW / 2, Math.max(textStartY, textAreaY + textPad + 4), {
+    align: "center",
+    lineHeightFactor: 1.7,
+  });
+
+  // Bottom ornament
+  drawOrnamentLine(doc, PH - 9, COL.muted);
+}
+
+// ── Closing "The End" page ────────────────────────────────────────────────────
+function buildClosingPage(
+  doc: import("jspdf").jsPDF,
+  title: string,
+  tellerName: string,
+) {
+  doc.setFillColor(...COL.bgDark);
+  doc.rect(0, 0, PW, PH, "F");
+
+  drawCorners(doc, MARGIN - 4, MARGIN - 4, INNER_W + 8, PH - MARGIN * 2 + 8);
+
+  const cy = PH / 2;
+
+  drawOrnamentLine(doc, cy - 36, COL.gold);
+
+  doc.setFont("times", "italic");
+  doc.setFontSize(38);
+  doc.setTextColor(...COL.gold);
+  doc.text("The End", PW / 2, cy - 18, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...COL.white);
+  doc.text(`"${title}"`, PW / 2, cy + 4, { align: "center" });
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...COL.muted);
+  doc.text(`A story told by ${tellerName}`, PW / 2, cy + 16, { align: "center" });
+
+  drawOrnamentLine(doc, cy + 30, COL.gold);
+
+  // Katha footer
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...COL.gold);
+  doc.text("KATHA", PW / 2, PH - 22, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...COL.muted);
+  doc.text("Preserving Stories That Must Not Be Forgotten", PW / 2, PH - 14, { align: "center" });
+  doc.text("katha.app", PW / 2, PH - 8, { align: "center" });
+}
+
+// ── Main hook ─────────────────────────────────────────────────────────────────
 export function usePdfExport(): UsePdfExportReturn {
   const [exporting, setExporting] = useState(false);
+  const [progress,  setProgress]  = useState(0);
 
   const exportPdf = useCallback(async (
     pages: Page[],
@@ -63,93 +337,45 @@ export function usePdfExport(): UsePdfExportReturn {
     tellerName: string,
   ) => {
     setExporting(true);
+    setProgress(0);
+
     try {
-      // Dynamic import keeps jsPDF out of the initial JS bundle
       const { jsPDF } = await import("jspdf");
 
       const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
+        orientation: "portrait",
+        unit:        "mm",
+        format:      "a4",
+        compress:    true,
       });
 
-      const imgW  = PW - MARGIN * 2;        // illustration width
-      const imgH  = imgW * (3 / 4);         // keep 4:3 aspect
-      const imgY  = MARGIN + 10;            // top of illustration
-      const textY = imgY + imgH + 8;        // top of text block
-      const footY = PH - 8;                 // bottom footnote line
+      const total = pages.length + 2; // cover + story pages + closing
 
+      // ── Cover ──
+      await buildCoverPage(doc, pages[0].imageUrl, storyTitle, tellerName);
+      setProgress(Math.round((1 / total) * 100));
+
+      // ── Story pages ──
       for (let i = 0; i < pages.length; i++) {
-        if (i > 0) doc.addPage();
-
-        const page = pages[i];
-
-        // ── Background ───────────────────────────────────────────────────
-        doc.setFillColor(252, 249, 245); // warm off-white
-        doc.rect(0, 0, PW, PH, "F");
-
-        // ── Title bar (page 1 only) ───────────────────────────────────────
-        if (i === 0) {
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(11);
-          doc.setTextColor(60, 40, 80);
-          doc.text(storyTitle, MARGIN, MARGIN + 4);
-        }
-
-        // ── Illustration ──────────────────────────────────────────────────
-        try {
-          const dataUrl = await toDataUrl(page.imageUrl);
-          doc.addImage(dataUrl, "JPEG", MARGIN, imgY, imgW, imgH, undefined, "FAST");
-        } catch {
-          // If image fails, draw a placeholder rectangle
-          doc.setFillColor(220, 210, 230);
-          doc.roundedRect(MARGIN, imgY, imgW, imgH, 4, 4, "F");
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor(140, 120, 160);
-          doc.text("Illustration", PW / 2, imgY + imgH / 2, { align: "center" });
-        }
-
-        // ── Thin decorative rule below image ──────────────────────────────
-        doc.setDrawColor(180, 150, 200);
-        doc.setLineWidth(0.4);
-        doc.line(MARGIN, imgY + imgH + 3, PW - MARGIN, imgY + imgH + 3);
-
-        // ── Page text (wrapped, centred) ──────────────────────────────────
-        doc.setFont("times", "normal");
-        doc.setFontSize(13);
-        doc.setTextColor(40, 30, 55);
-        const wrapped = doc.splitTextToSize(page.text, imgW);
-        doc.text(wrapped, PW / 2, textY, { align: "center", lineHeightFactor: 1.5 });
-
-        // ── Footer: page number + teller credit ──────────────────────────
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(160, 140, 180);
-        doc.text(
-          `Page ${i + 1} of ${pages.length}`,
-          PW - MARGIN,
-          footY,
-          { align: "right" }
-        );
-        if (i === pages.length - 1) {
-          // Last page: teller credit centred
-          doc.text(
-            `A story told by ${tellerName}  ·  Preserved with Katha`,
-            PW / 2,
-            footY,
-            { align: "center" }
-          );
-        }
+        doc.addPage();
+        await buildStoryPage(doc, i, pages.length, pages[i].imageUrl, pages[i].text, storyTitle);
+        setProgress(Math.round(((i + 2) / total) * 100));
       }
 
-      // ── Download ──────────────────────────────────────────────────────────
+      // ── Closing ──
+      doc.addPage();
+      buildClosingPage(doc, storyTitle, tellerName);
+      setProgress(100);
+
+      // ── Save ──
       const filename = `${storyTitle.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-picture-book.pdf`;
       doc.save(filename);
+
     } finally {
       setExporting(false);
+      setProgress(0);
     }
   }, []);
 
-  return { exporting, exportPdf };
+  return { exporting, progress, exportPdf };
 }

@@ -40,10 +40,15 @@ interface BookJson {
 
 /** Build the Pollinations image URL for a picture-book page. */
 function pageImageUrl(imagePrompt: string): string {
-  const enriched = `${imagePrompt}, children's book illustration, warm colors, storybook art style`;
+  const enriched =
+    `${imagePrompt}, ` +
+    `beautiful children's picture book illustration, ` +
+    `warm vibrant watercolor painting, soft dreamy lighting, ` +
+    `Himalayan folk art style, rich colors, detailed background, ` +
+    `storybook quality, 4k`;
   return (
     `https://gen.pollinations.ai/image/${encodeURIComponent(enriched)}` +
-    `?nologo=true&width=600&height=450&key=${process.env.POLLINATIONS_API_KEY}`
+    `?nologo=true&width=800&height=600&key=${process.env.POLLINATIONS_API_KEY}`
   );
 }
 
@@ -59,13 +64,22 @@ function stripFences(raw: string): string {
  */
 async function fetchBookPages(sourceText: string): Promise<BookJson> {
   const prompt =
-    `Rewrite this story as a children's picture book with exactly 4 pages. ` +
-    `For each page, write 1-2 simple, warm sentences (age 5-8 reading level) ` +
-    `AND a short visual description for an illustrator (describing the scene, ` +
-    `characters, setting, mood - 10-15 words). ` +
+    `Rewrite this folk tale as a beautiful children's picture book with exactly 6 pages. ` +
+    `Page 1 introduces the setting and main character warmly. ` +
+    `Pages 2-5 tell the story with rising action and a satisfying resolution. ` +
+    `Page 6 ends with a gentle moral or peaceful closing image. ` +
+    `For EACH page write: ` +
+    `(a) 2-3 warm, vivid sentences at a 6-8 year old reading level — make it lyrical and emotionally engaging, ` +
+    `(b) a rich visual scene description for an illustrator (20-25 words, specific characters, setting details, mood, lighting, colors). ` +
     `Return ONLY valid JSON in this exact format, no markdown, no extra text:\n` +
-    `{"pages":[{"text":"...","imagePrompt":"..."},{"text":"...","imagePrompt":"..."},` +
-    `{"text":"...","imagePrompt":"..."},{"text":"...","imagePrompt":"..."}]}\n` +
+    `{"pages":[` +
+    `{"text":"...","imagePrompt":"..."},` +
+    `{"text":"...","imagePrompt":"..."},` +
+    `{"text":"...","imagePrompt":"..."},` +
+    `{"text":"...","imagePrompt":"..."},` +
+    `{"text":"...","imagePrompt":"..."},` +
+    `{"text":"...","imagePrompt":"..."}` +
+    `]}\n` +
     `Story: ${sourceText}`;
 
   const raw = await askGranite(prompt);
