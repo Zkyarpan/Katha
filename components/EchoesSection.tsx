@@ -26,7 +26,7 @@ export default function EchoesSection({ storyId }: { storyId: string }) {
 
   const supabase = createClient();
 
-  useEffect(() => { loadEchoes(); loadUser(); }, []);
+  useEffect(() => { loadEchoes(); loadUser(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadUser = async () => {
     const { data } = await supabase.auth.getUser();

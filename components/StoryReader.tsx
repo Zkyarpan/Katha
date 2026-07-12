@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 
 interface StoryReaderProps {
-  storyId: string;
   cleanedText: string | null;
   originalLanguage: string | null;
 }
@@ -18,7 +17,7 @@ const LANGUAGES = [
   "Portuguese", "German",
 ];
 
-export default function StoryReader({ storyId, cleanedText, originalLanguage }: StoryReaderProps) {
+export default function StoryReader({ cleanedText, originalLanguage }: StoryReaderProps) {
   const [expanded,       setExpanded]       = useState(false);
   const [language,       setLanguage]       = useState("English");
   const [translatedText, setTranslatedText] = useState<string | null>(null);

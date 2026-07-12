@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Plus, MapPin, ArrowRight, BookOpen, Globe, Languages } from "lucide-react";
-import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import StoryCard from "@/components/StoryCard";
 import { supabase } from "@/lib/supabase";

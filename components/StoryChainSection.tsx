@@ -479,7 +479,7 @@ export default function StoryChainSection({ storyId }: { storyId: string }) {
                   {/* Optional note */}
                   {link.note && (
                     <p className="mt-1.5 text-xs text-neutral-500 italic leading-relaxed">
-                      "{link.note}"
+                      &ldquo;{link.note}&rdquo;
                     </p>
                   )}
                 </div>

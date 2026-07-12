@@ -284,7 +284,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
           {/* ── Story reader ── */}
           <div className="order-1 lg:order-2 lg:col-span-2 min-w-0">
             <StoryReader
-              storyId={story.id}
               cleanedText={story.cleaned_text ?? story.raw_text}
               originalLanguage={story.language}
             />

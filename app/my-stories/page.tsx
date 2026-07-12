@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
-import Header from "@/components/Header";
 import StoryCard from "@/components/StoryCard";
 import { createClient } from "@/lib/supabase-server";
 import { BlurFade } from "@/components/ui/blur-fade";
