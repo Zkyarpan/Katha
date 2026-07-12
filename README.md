@@ -15,26 +15,40 @@ Thousands of oral folk tales are disappearing as elders pass away. These stories
 
 ## The Solution
 
-Katha lets anyone save a rough, imperfect retelling of a story they remember. AI cleans it into polished writing, translates it, illustrates it with a generated cover image, and reimagines it as a children's book or comic script — turning a fading memory into a preserved, shareable creative work.
+Katha lets anyone save a rough, imperfect retelling of a story they remember — by voice or by text. AI cleans it into polished writing, translates it, illustrates it, and reimagines it as a children's book or comic. The original storyteller's **actual voice** is preserved alongside the text. Stories can be linked to related variants across cultures, and exported as printable picture books.
+
+A fading memory becomes a preserved, shareable, living creative work.
 
 ---
 
 ## Features
 
+### Preservation
 | Feature | Description |
 |---|---|
 | 📝 Save a story | Type or dictate a rough retelling — AI cleans it up |
-| 🌍 Multi-language | Auto-detects original language; readers can read in any language on demand |
-| 🎨 AI cover art | Every story gets an AI-generated cover illustration |
+| 🎙️ **Voice preservation** | The storyteller's actual audio is saved and playable — not just transcribed and discarded |
+| 🌍 Any language in, any language out | Auto-detects the original language; readers can read any story in any language on demand |
 | 🗺️ Origin map | Stories are geocoded and pinned on a world map |
-| 🏷️ Auto-tagging | AI labels each story's theme (e.g. "Mountain Spirit", "Trickster Tale") |
-| 📖 Children's Book | Reimagines stories as illustrated multi-page picture books |
-| 🎭 Comic Script | Reimagines stories as panel-by-panel comic scripts |
-| 🔊 Read Aloud | Reads the story aloud in the selected language |
-| 🎙️ Voice input | Dictate stories by voice instead of typing |
-| 💬 Echoes | Readers share related memories on each story |
-| 🔐 Auth | Sign in with Google, magic link, or anonymously |
-| 🛡️ Admin panel | Manage stories, echoes, and users |
+| 🏷️ Auto-tagging | AI labels each story's theme |
+
+### Reimagining
+| Feature | Description |
+|---|---|
+| 🎨 AI cover art | Every story gets an AI-generated illustration |
+| 📖 Illustrated children's book | Reimagines any story as a multi-page picture book, each page with its own AI illustration |
+| 📄 **PDF export** | Download the illustrated book as a real, printable PDF |
+| 🎭 Comic script | Reimagines any story as a panel-by-panel comic |
+| 🔊 Read aloud | Reads the story in whichever language is selected |
+
+### Community
+| Feature | Description |
+|---|---|
+| 💬 Echoes | Readers share a related memory beneath any story |
+| 🔗 **Story Chain** | Link a story to its variants — see how the same myth surfaces across different cultures |
+| 📊 **Impact stats** | Live count of stories preserved, languages represented, and countries reached |
+| 🔐 Auth | Sign in with Google, magic link, or fully anonymously |
+| 🛡️ Admin panel | Moderate stories, echoes, and users |
 
 ---
 
@@ -46,13 +60,16 @@ Katha lets anyone save a rough, imperfect retelling of a story they remember. AI
 
 ## AI Architecture
 
-All AI calls go through a single swappable function (`lib/watsonx.ts`) so the underlying model can be changed without touching the rest of the app.
+All AI calls route through a single swappable function (`lib/watsonx.ts`), so the underlying model can be changed without touching the rest of the app.
 
-| Task | Model |
+| Task | Approach |
 |---|---|
-| Story cleanup, translation, tagging, reimagining | Pollinations AI text (OpenAI-compatible, prompted for IBM Granite-style instruction following) |
-| Cover & book illustrations | Pollinations AI image generation |
-| Voice input & Read Aloud | Browser Web Speech API |
+| Story cleanup, translation, tagging, reimagining | Pollinations AI text (OpenAI-compatible endpoint) |
+| Cover art & per-page book illustrations | Pollinations AI image generation |
+| Voice-to-text input | Browser Web Speech API |
+| Voice audio preservation | Supabase Storage |
+| Read aloud | Browser Speech Synthesis API |
+| Geocoding | OpenStreetMap Nominatim |
 
 ---
 
@@ -60,12 +77,13 @@ All AI calls go through a single swappable function (`lib/watsonx.ts`) so the un
 
 IBM Bob was the **primary development tool** throughout the entire build:
 
-- Scaffolded the Next.js project structure and all API routes
-- Generated and debugged Supabase database schema and RLS policies
-- Built the AI integration pipeline (text cleanup, translation, reimagine API routes)
-- Wrote and fixed UI components (StoryCard, EchoesSection, AdminTables, PictureBook)
-- Resolved Next.js App Router-specific issues (Server Components, SSR, dynamic imports)
-- Iterated on the UI redesign with shadcn/ui and Magic UI components
+- Scaffolded the Next.js project structure and every API route
+- Generated and debugged the Supabase schema, RLS policies, and auth triggers
+- Built the full AI pipeline (cleanup, translation, tagging, reimagining, image generation)
+- Implemented audio upload/playback with Supabase Storage
+- Built the PDF export pipeline for illustrated books
+- Wrote and iterated on every UI component
+- Resolved Next.js App Router edge cases (Server Components, SSR, dynamic imports)
 
 ---
 
@@ -76,12 +94,12 @@ IBM Bob was the **primary development tool** throughout the entire build:
 | Framework | Next.js 15 (App Router, TypeScript) |
 | Styling | Tailwind CSS + shadcn/ui + Magic UI |
 | Database | Supabase (Postgres + Row Level Security) |
+| Storage | Supabase Storage (voice recordings) |
 | Auth | Supabase Auth (Google OAuth, Magic Link, Anonymous) |
-| AI (text) | Pollinations.ai (OpenAI-compatible endpoint) |
-| AI (images) | Pollinations.ai image generation |
-| Map | Leaflet + OpenStreetMap + CartoDB tiles |
+| AI | Pollinations.ai (text + image) |
+| Map | Leaflet + OpenStreetMap |
 | Hosting | Vercel |
-| Dev tool | IBM Bob |
+| Dev tool | **IBM Bob** |
 
 ---
 
