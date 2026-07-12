@@ -2,7 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import ReimagineSection from "@/components/ReimagineSection";
 import EchoesSection from "@/components/EchoesSection";
+import StoryChainSection from "@/components/StoryChainSection";
 import StoryReader from "@/components/StoryReader";
+import VoicePlayer from "@/components/VoicePlayer";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -124,6 +126,14 @@ export default async function StoryDetailPage({ params }: PageProps) {
               </span>
             </div>
 
+            {/* Voice recording player — shown when the original teller's voice was captured */}
+            {story.voice_recording_url && (
+              <VoicePlayer
+                url={story.voice_recording_url}
+                tellerName={story.teller_name}
+              />
+            )}
+
             {/* About — under image, desktop only */}
             <div className="hidden lg:block mt-6 pt-6 border-t border-neutral-100">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-4">
@@ -217,7 +227,16 @@ export default async function StoryDetailPage({ params }: PageProps) {
               <ReimagineSection
                 storyId={story.id}
                 cleanedText={story.cleaned_text ?? story.raw_text}
+                storyTitle={displayTitle}
+                tellerName={story.teller_name}
               />
+            </CardContent>
+          </Card>
+
+          {/* Story Chain — linked / related tales */}
+          <Card className="border border-neutral-200 bg-white shadow-sm rounded-xl overflow-hidden">
+            <CardContent className="p-6 sm:p-8">
+              <StoryChainSection storyId={story.id} />
             </CardContent>
           </Card>
 

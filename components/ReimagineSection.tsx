@@ -23,9 +23,15 @@ type ReimagineResult =
 interface ReimagineProps {
   storyId: string;
   cleanedText: string;
+  storyTitle?: string;
+  tellerName?: string;
 }
 
-export default function ReimagineSection({ storyId }: ReimagineProps) {
+export default function ReimagineSection({
+  storyId,
+  storyTitle,
+  tellerName,
+}: ReimagineProps) {
   const [activeFormat, setActiveFormat] = useState<ReimagineFormat>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReimagineResult>(null);
@@ -121,7 +127,11 @@ export default function ReimagineSection({ storyId }: ReimagineProps) {
               <p className="text-red-500 text-sm">{error}</p>
             </div>
           ) : result?.kind === "children" ? (
-            <PictureBook pages={result.pages} />
+            <PictureBook
+              pages={result.pages}
+              storyTitle={storyTitle}
+              tellerName={tellerName}
+            />
           ) : result?.kind === "comic" ? (
             <div className="border border-neutral-200 rounded-lg p-5">
               <div className="prose prose-neutral prose-sm max-w-none">

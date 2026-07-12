@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePdfExport } from "@/lib/usePdfExport";
 
 // ---------------------------------------------------------------------------
 // PictureBook
-// Renders a multi-page children's picture book with navigation and
-// page-turn fade transitions.
+// Renders a multi-page children's picture book with navigation,
+// page-turn fade transitions, and a PDF export button.
 // ---------------------------------------------------------------------------
 
 interface Page {
@@ -18,18 +19,25 @@ interface Page {
 
 interface PictureBookProps {
   pages: Page[];
+  storyTitle?: string;
+  tellerName?: string;
 }
 
-export default function PictureBook({ pages }: PictureBookProps) {
+export default function PictureBook({
+  pages,
+  storyTitle = "A Folk Tale",
+  tellerName = "an unknown storyteller",
+}: PictureBookProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [visible, setVisible] = useState(true); // drives the fade transition
+  const [visible, setVisible] = useState(true);
+
+  const { exporting, exportPdf } = usePdfExport();
 
   // Fade out → update page → fade in whenever currentPage changes.
   const goTo = (index: number) => {
     if (index === currentPage) return;
     setVisible(false);
-    // Wait for the fade-out (150 ms) before updating the page content.
     setTimeout(() => {
       setCurrentPage(index);
       setImgLoaded(false);
@@ -42,7 +50,7 @@ export default function PictureBook({ pages }: PictureBookProps) {
     setImgLoaded(false);
   }, [currentPage]);
 
-  const page = pages[currentPage];
+  const page   = pages[currentPage];
   const isFirst = currentPage === 0;
   const isLast  = currentPage === pages.length - 1;
 
@@ -62,7 +70,7 @@ export default function PictureBook({ pages }: PictureBookProps) {
             <Skeleton className="absolute inset-0 rounded-none" />
           )}
           <Image
-            key={page.imageUrl} // remount on URL change so onLoad fires reliably
+            key={page.imageUrl}
             src={page.imageUrl}
             alt={`Page ${currentPage + 1} illustration`}
             fill
@@ -101,7 +109,7 @@ export default function PictureBook({ pages }: PictureBookProps) {
         ))}
       </div>
 
-      {/* ── Previous / Next navigation ── */}
+      {/* ── Navigation + Download row ── */}
       <div className="flex items-center justify-between mt-5">
         <button
           onClick={() => goTo(currentPage - 1)}
@@ -110,6 +118,25 @@ export default function PictureBook({ pages }: PictureBookProps) {
         >
           <ChevronLeft size={16} />
           Previous
+        </button>
+
+        {/* Download PDF button — centre */}
+        <button
+          onClick={() => exportPdf(pages, storyTitle, tellerName)}
+          disabled={exporting}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white transition-colors shadow-sm"
+        >
+          {exporting ? (
+            <>
+              <Loader2 size={13} className="animate-spin" />
+              Building PDF…
+            </>
+          ) : (
+            <>
+              <Download size={13} />
+              Download PDF
+            </>
+          )}
         </button>
 
         <button

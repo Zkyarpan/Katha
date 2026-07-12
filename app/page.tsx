@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, MapPin, ArrowRight } from "lucide-react";
+import { Plus, MapPin, ArrowRight, BookOpen, Globe, Languages } from "lucide-react";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import StoryCard from "@/components/StoryCard";
@@ -15,6 +15,17 @@ export default async function HomePage() {
 
   const storyList = stories ?? [];
 
+  // ── Real impact stats computed from live data ──────────────────────────
+  const totalStories   = storyList.length;
+  const uniqueLanguages = new Set(
+    storyList.map((s) => (s.language ?? "English").trim().toLowerCase()).filter(Boolean)
+  ).size;
+  const uniqueLocations = new Set(
+    storyList
+      .map((s) => (s.location_name ?? "").split(",").pop()?.trim().toLowerCase())
+      .filter(Boolean)
+  ).size;
+
   const pinned = storyList
     .filter((s) => s.latitude && s.longitude)
     .map((s) => ({
@@ -24,9 +35,39 @@ export default async function HomePage() {
       longitude: s.longitude,
     }));
 
+  const STATS = [
+    { icon: BookOpen,   value: totalStories,    label: "stories preserved" },
+    { icon: Languages,  value: uniqueLanguages,  label: "languages"         },
+    { icon: Globe,      value: uniqueLocations,  label: "places"            },
+  ];
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <HeroSection />
+
+      {/* ── Impact stats strip ── */}
+      {totalStories > 0 && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <BlurFade delay={0.05}>
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 -mt-2 mb-10">
+              {STATS.map(({ icon: Icon, value, label }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center justify-center gap-1 py-5 px-3 bg-white rounded-xl border border-neutral-200 shadow-sm"
+                >
+                  <Icon size={16} className="text-purple-400 mb-0.5" />
+                  <span className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900 tabular-nums">
+                    {value}
+                  </span>
+                  <span className="text-xs text-neutral-400 text-center leading-tight">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </BlurFade>
+        </div>
+      )}
 
       {/* ── Stories + Map ── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -98,16 +139,6 @@ export default async function HomePage() {
                     Story Origins
                   </h2>
                 </div>
-                <Link
-                  href="/stories"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-700 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 h-9 px-4 rounded-lg shadow-xs transition-all active:scale-[0.98] group"
-                >
-                  View Map
-                  <ArrowRight
-                    size={14}
-                    className="group-hover:translate-x-0.5 transition-transform"
-                  />
-                </Link>
               </div>
               <div className="rounded-xl overflow-hidden border border-neutral-200 shadow-sm">
                 <OriginMapClient stories={pinned} />

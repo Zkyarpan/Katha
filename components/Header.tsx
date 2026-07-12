@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Plus, LogOut, Shield } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BookOpen, Plus, LogOut, Shield, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import AuthModal from "@/components/AuthModal";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -16,64 +16,102 @@ interface Profile {
 }
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [showAuth, setShowAuth] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const [scrolled, setScrolled]   = useState(false);
+  const [user,     setUser]        = useState<SupabaseUser | null>(null);
+  const [profile,  setProfile]     = useState<Profile | null>(null);
+  const [showAuth, setShowAuth]    = useState(false);
+  const [showMenu, setShowMenu]    = useState(false);
+  // Tracks whether we have already attempted the first profile load so the
+  // avatar doesn't flash "?" while the async call is in-flight.
+  const [ready,    setReady]       = useState(false);
 
-  const supabase = createClient();
+  const supabase   = createClient();
+  const menuRef    = useRef<HTMLDivElement>(null);
 
+  // ── Profile loader ──────────────────────────────────────────────────────
+  const loadProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name, avatar_url, is_anonymous, role")
+      .eq("id", userId)
+      .single();
+    setProfile(data ?? null);
+  };
+
+  // ── Bootstrap + auth listener ──────────────────────────────────────────
   useEffect(() => {
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
-      if (data.user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("display_name, avatar_url, is_anonymous, role")
-          .eq("id", data.user.id)
-          .single();
-        setProfile(profileData);
-      }
-    };
-    loadUser();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) loadUser();
-      else setProfile(null);
-    });
+    // Read scroll position immediately on mount so the shadow is correct on
+    // page load / browser-back / hard-refresh — not just after first scroll.
+    setScrolled(window.scrollY > 10);
 
     const handleScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    // Initial session read
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user ?? null;
+      setUser(u);
+      if (u) loadProfile(u.id).finally(() => setReady(true));
+      else   setReady(true);
+    });
+
+    // Listen for sign-in / sign-out / token-refresh events
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) {
+          await loadProfile(u.id);
+        } else {
+          setProfile(null);
+        }
+        setReady(true);
+      }
+    );
+
+    // Close dropdown when clicking outside
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      listener.subscription.unsubscribe();
       window.removeEventListener("scroll", handleScroll);
+      listener.subscription.unsubscribe();
+      document.removeEventListener("mousedown", handleClickOutside);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
     setShowMenu(false);
-    window.location.reload();
   };
 
   const isAdmin = profile?.role === "admin";
 
+  // Display name — fall back gracefully while loading
+  const displayName = profile?.display_name
+    || (user?.email ? user.email.split("@")[0] : null)
+    || "Storyteller";
+
   return (
     <>
       <header
-        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        className={`sticky top-0 z-50 w-full transition-all duration-200 ${
           scrolled
-            ? "bg-white/80 backdrop-blur-xl border-b border-neutral-200 shadow-sm"
-            : "bg-transparent"
+            ? "bg-white/95 backdrop-blur-xl border-b border-neutral-200 shadow-[0_2px_16px_0_rgba(0,0,0,0.10)]"
+            : "bg-white border-b border-neutral-100"
         }`}
       >
         <div className="max-w-7xl mx-auto flex h-14 items-center justify-between px-4 sm:px-6 lg:px-10">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+
+          {/* ── Logo ── */}
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <div className="h-8 w-8 rounded-lg bg-neutral-900 flex items-center justify-center">
               <BookOpen size={15} className="text-white" />
             </div>
@@ -82,8 +120,9 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Right side */}
+          {/* ── Right side ── */}
           <div className="flex items-center gap-1 sm:gap-2">
+
             {/* Nav links */}
             <Link
               href="/stories"
@@ -111,7 +150,6 @@ export default function Header() {
               </Link>
             )}
 
-            {/* Divider */}
             <div className="hidden sm:block w-px h-5 bg-neutral-200 mx-1" />
 
             {/* Add a Story */}
@@ -124,75 +162,95 @@ export default function Header() {
               <span className="sm:hidden">Add</span>
             </Link>
 
-            {/* Auth */}
-            {user ? (
-              <div className="relative">
+            {/* ── Auth / Avatar ── */}
+            {!ready ? (
+              /* Placeholder while first auth check is in-flight — prevents layout shift */
+              <div className="w-9 h-9 rounded-full bg-neutral-100 animate-pulse" />
+            ) : user ? (
+              <div className="relative" ref={menuRef}>
                 <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="flex items-center gap-1.5 rounded-full hover:opacity-80 transition-opacity cursor-pointer"
+                  onClick={() => setShowMenu((v) => !v)}
+                  className="flex items-center gap-1.5 rounded-full ring-2 ring-transparent hover:ring-neutral-200 transition-all cursor-pointer"
+                  aria-label="Open account menu"
+                  aria-expanded={showMenu}
                 >
                   <UserAvatar
-                    name={profile?.display_name || "?"}
+                    name={displayName}
                     avatarUrl={profile?.avatar_url}
-                    size={32}
+                    size={34}
                   />
                 </button>
+
+                {/* Dropdown */}
                 {showMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-52 bg-white border border-neutral-200 rounded-xl shadow-lg py-1 z-50">
-                      <div className="px-3 py-2.5 border-b border-neutral-100">
-                        <p className="text-sm font-medium text-neutral-900 truncate">
-                          {profile?.display_name || "Storyteller"}
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-neutral-200 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                    {/* User info header */}
+                    <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-neutral-100">
+                      <UserAvatar
+                        name={displayName}
+                        avatarUrl={profile?.avatar_url}
+                        size={28}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">
+                          {displayName}
                         </p>
-                        {profile?.is_anonymous && (
-                          <p className="text-xs text-neutral-400 mt-0.5">
+                        {profile?.is_anonymous ? (
+                          <p className="text-xs text-neutral-400">
                             Anonymous session
                           </p>
-                        )}
-                      </div>
-                      <div className="py-1">
-                        <Link
-                          href="/my-stories"
-                          className="sm:hidden w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"
-                        >
-                          My Stories
-                        </Link>
-                        <Link
-                          href="/stories"
-                          className="sm:hidden w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"
-                        >
-                          Browse
-                        </Link>
-                        {isAdmin && (
-                          <Link
-                            href="/admin"
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors"
-                          >
-                            <Shield size={13} />
-                            Admin Dashboard
-                          </Link>
-                        )}
-                        <div className="border-t border-neutral-100 my-1" />
-                        <button
-                          onClick={handleSignOut}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                        >
-                          <LogOut size={14} />
-                          Sign Out
-                        </button>
+                        ) : user.email ? (
+                          <p className="text-xs text-neutral-400 truncate">
+                            {user.email}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
-                  </>
+
+                    <div className="py-1">
+                      {/* Mobile-only nav items */}
+                      <Link
+                        href="/my-stories"
+                        onClick={() => setShowMenu(false)}
+                        className="sm:hidden w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                      >
+                        My Stories
+                      </Link>
+                      <Link
+                        href="/stories"
+                        onClick={() => setShowMenu(false)}
+                        className="sm:hidden w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                      >
+                        Browse
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setShowMenu(false)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                        >
+                          <Shield size={13} />
+                          Admin Dashboard
+                        </Link>
+                      )}
+
+                      <div className="border-t border-neutral-100 my-1" />
+
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer rounded-b-xl"
+                      >
+                        <LogOut size={14} />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             ) : (
               <button
                 onClick={() => setShowAuth(true)}
-                className="inline-flex items-center text-sm font-medium text-neutral-700 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 h-9 px-4 rounded-lg shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center text-sm font-medium text-neutral-700 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 h-9 px-4 rounded-lg shadow-sm transition-all active:scale-[0.98] cursor-pointer"
               >
                 Sign In
               </button>
@@ -201,7 +259,11 @@ export default function Header() {
         </div>
       </header>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+        />
+      )}
     </>
   );
 }

@@ -1,23 +1,26 @@
-"use client";
-
 import Link from "next/link";
-import { ArrowRight, BookOpen, Globe, Users, Languages } from "lucide-react";
+import { ArrowRight, BookOpen, Globe, Languages } from "lucide-react";
 import { BlurFade } from "@/components/ui/blur-fade";
 import { Marquee } from "@/components/ui/marquee";
 
+// Tags and locations pulled from the live seeded stories — marquee stays
+// purely decorative (genre / place labels, no fake numbers)
 const MARQUEE_ITEMS = [
-  { icon: BookOpen, label: "1,200+ stories preserved" },
-  { icon: Globe, label: "45 countries" },
-  { icon: Languages, label: "80+ languages" },
-  { icon: Users, label: "3,000+ storytellers" },
   { icon: BookOpen, label: "Folktales" },
   { icon: BookOpen, label: "Myths & Legends" },
+  { icon: BookOpen, label: "Trickster Tales" },
+  { icon: BookOpen, label: "Origin Stories" },
+  { icon: BookOpen, label: "Hero Journeys" },
   { icon: Globe, label: "Nepal" },
-  { icon: Globe, label: "Nigeria" },
-  { icon: Globe, label: "Mexico" },
-  { icon: Globe, label: "Japan" },
-  { icon: Globe, label: "India" },
-  { icon: Globe, label: "Peru" },
+  { icon: Globe, label: "Himalayas" },
+  { icon: Globe, label: "Mustang" },
+  { icon: Globe, label: "Kathmandu Valley" },
+  { icon: Globe, label: "Dolpo" },
+  { icon: Languages, label: "Nepali" },
+  { icon: Languages, label: "Newari" },
+  { icon: Languages, label: "Tharu" },
+  { icon: Languages, label: "Tibetan" },
+  { icon: Languages, label: "Magar" },
 ];
 
 export default function HeroSection() {

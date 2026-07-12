@@ -25,6 +25,7 @@ import {
   Languages,
   ChevronDown,
   AlertCircle,
+  AudioLines,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -103,10 +104,17 @@ export default function NewStoryPage() {
   // Speech recognition
   const [isListening, setIsListening] = useState(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
-  const [speechLang, setSpeechLang] = useState("ne-NP"); // default Nepali — user should pick their own
+  const [speechLang, setSpeechLang] = useState("ne-NP");
   const [speechError, setSpeechError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const committedRef = useRef("");
+
+  // Audio recording (MediaRecorder — runs in parallel with SpeechRecognition)
+  const mediaRecorderRef  = useRef<MediaRecorder | null>(null);
+  const audioChunksRef    = useRef<Blob[]>([]);
+  const [audioBlob,       setAudioBlob]       = useState<Blob | null>(null);
+  const [audioMime,       setAudioMime]        = useState("audio/webm");
+  const [recordingReady,  setRecordingReady]  = useState(false); // true once blob is built
 
   useEffect(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
@@ -151,7 +159,52 @@ export default function NewStoryPage() {
     );
   };
 
-  // ── Speech recognition ──
+  // ── Audio recording helpers ───────────────────────────────────────────────
+
+  const startMediaRecorder = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Pick the best supported MIME type
+      const mime = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+      ].find((m) => MediaRecorder.isTypeSupported(m)) ?? "audio/webm";
+
+      setAudioMime(mime.split(";")[0]); // store base mime without codecs
+      audioChunksRef.current = [];
+      setAudioBlob(null);
+      setRecordingReady(false);
+
+      const mr = new MediaRecorder(stream, { mimeType: mime });
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: mime.split(";")[0] });
+        setAudioBlob(blob);
+        setRecordingReady(true);
+        // Stop all mic tracks to release the browser mic indicator
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      mr.start(250); // collect chunks every 250 ms
+      mediaRecorderRef.current = mr;
+    } catch {
+      // Mic permission denied or not available — recording just won't happen,
+      // speech transcription still works normally.
+    }
+  }, []);
+
+  const stopMediaRecorder = useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+  }, []);
+
+  // ── Speech recognition ────────────────────────────────────────────────────
+
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!SR) return;
@@ -160,9 +213,6 @@ export default function NewStoryPage() {
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
-    // Must be a concrete BCP-47 tag — the browser does NOT auto-detect speech
-    // language; passing "" silently falls back to the OS UI language (usually
-    // English) which is why Nepali was being mis-transcribed.
     recognition.lang = speechLang;
 
     const storyAtStart = story;
@@ -203,13 +253,18 @@ export default function NewStoryPage() {
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [speechLang, story]);
+
+    // Also start audio capture in parallel
+    startMediaRecorder();
+  }, [speechLang, story, startMediaRecorder]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setIsListening(false);
-  }, []);
+    // Stop audio capture — triggers mr.onstop which builds the blob
+    stopMediaRecorder();
+  }, [stopMediaRecorder]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,9 +276,9 @@ export default function NewStoryPage() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      // Find the human-readable name for the selected BCP-47 tag
       const langLabel = LANGUAGES.find(([tag]) => tag === speechLang)?.[1] ?? null;
 
+      // 1. Save the story text first
       const res = await fetch("/api/clean-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,7 +287,7 @@ export default function NewStoryPage() {
           tellerName: teller,
           rawText: story,
           locationName: location,
-          language: langLabel,   // pass the confirmed language to the API
+          language: langLabel,
           userId: user?.id ?? null,
         }),
       });
@@ -241,7 +296,23 @@ export default function NewStoryPage() {
         setError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
-      router.push(`/story/${data.id}`);
+
+      const storyId: string = data.id;
+
+      // 2. If we captured audio, upload it now (non-fatal if it fails)
+      const blobToUpload = audioBlob;
+      if (blobToUpload && blobToUpload.size > 0) {
+        try {
+          const form = new FormData();
+          form.append("audio", blobToUpload, `voice.${audioMime.split("/")[1] ?? "webm"}`);
+          form.append("storyId", storyId);
+          await fetch("/api/upload-recording", { method: "POST", body: form });
+        } catch {
+          // Recording upload failed — story is still saved, just without audio
+        }
+      }
+
+      router.push(`/story/${storyId}`);
     } catch {
       setError("Network error — please check your connection and try again.");
     } finally {
@@ -424,6 +495,26 @@ export default function NewStoryPage() {
                      <span className="text-xs text-red-500 font-medium">
                        Listening in {LANGUAGES.find(([t]) => t === speechLang)?.[1] ?? speechLang}…
                      </span>
+                     <span className="ml-auto flex items-center gap-1 text-xs text-purple-500">
+                       <AudioLines size={11} className="animate-pulse" />
+                       Recording voice
+                     </span>
+                   </div>
+                 )}
+                 {!isListening && recordingReady && audioBlob && (
+                   <div className="flex items-center gap-2 mb-2 px-1 py-1.5 bg-purple-50 border border-purple-100 rounded-lg">
+                     <AudioLines size={12} className="text-purple-500 flex-shrink-0" />
+                     <span className="text-xs text-purple-700 font-medium">
+                       Voice recording ready — will be saved with your story
+                     </span>
+                     <button
+                       type="button"
+                       onClick={() => { setAudioBlob(null); setRecordingReady(false); }}
+                       className="ml-auto text-purple-300 hover:text-purple-600 text-xs"
+                       title="Discard recording"
+                     >
+                       ✕
+                     </button>
                    </div>
                  )}
                   <textarea

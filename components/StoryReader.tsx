@@ -53,17 +53,16 @@ export default function StoryReader({
     }
     setTranslating(true);
     try {
-      const res = await fetch("/api/translate", {
+      const res = await fetch("/api/translate-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: cleanedText,
           targetLanguage: lang,
-          storyId,
         }),
       });
       const data = await res.json();
-      if (data.translatedText) setTranslatedText(data.translatedText);
+      if (data.translated) setTranslatedText(data.translated);
     } catch {
       // silent
     } finally {
